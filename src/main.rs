@@ -28,3 +28,19 @@ fn main() {
         // store key presses
     }
 }
+
+fn chip8_initialise(&Chip8 c8) {
+    // Initialise registers and memory
+}
+
+fn chip8_execute(&Chip8 c8) {
+    // Fetch opcode.
+    // Decode opcode.
+    // Execute opcode.
+
+    // Update timers.
+}
+
+fn chip8_draw(&Chip8 c8) {
+    // Draw to screen.
+}
