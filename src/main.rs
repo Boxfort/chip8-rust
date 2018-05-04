@@ -13,12 +13,11 @@ struct Chip8 {
 }
 
 fn main() {
-    let chip8: Chip8;
-
     // Initialise graphics
     // Initialise input
 
     // Initialise chip8
+    let mut c8 = chip8_initialise();
     // Load game into memory
 
     loop {
@@ -29,11 +28,23 @@ fn main() {
     }
 }
 
-fn chip8_initialise(&Chip8 c8) {
-    // Initialise registers and memory
+fn chip8_initialise() -> Chip8 {
+    Chip8 {
+        opcode : 0,
+        memory : [0_u8; 4096],
+        v      : [0_u8; 16],
+        i      : 0,
+        pc     : 0x200,
+        gfx    : [0_u8; 64*32],
+        delay_timer: 0,
+        sound_timer: 0,
+        stack  : [0_u16; 16],
+        sp     : 0,
+        key    : [0_u16; 16]
+    }
 }
 
-fn chip8_execute(&Chip8 c8) {
+fn chip8_execute(c8: &mut Chip8) {
     // Fetch opcode.
     // Decode opcode.
     // Execute opcode.
@@ -41,6 +52,6 @@ fn chip8_execute(&Chip8 c8) {
     // Update timers.
 }
 
-fn chip8_draw(&Chip8 c8) {
+fn chip8_draw(c8: &mut Chip8) {
     // Draw to screen.
 }
