@@ -1,0 +1,6 @@
+[package]
+name = "chip8"
+version = "0.1.0"
+authors = ["Jack <jack_120@hotmail.co.uk>"]
+
+[dependencies]
