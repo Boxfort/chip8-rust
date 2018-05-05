@@ -114,9 +114,19 @@ fn chip8_load_game(c8: &mut Chip8, filename: &str) {
 }
 
 fn chip8_execute(c8: &mut Chip8) {
-    // Fetch opcode.
-    // Decode opcode.
+    // Fetch the 16 bit opcode from two sequential 8 bit pc locations, then
+    // combine them by shifting the first byte back by 8 bits and ORing
+    // by the second byte to combine both.
+    c8.opcode = (c8.memory[c8.pc as usize] as u16) << 8 | c8.memory[(c8.pc + 1) as usize] as u16;
+
+    // Decode opcode by removing the first nibble to get operation type.
+    let decoded = c8.opcode & 0xF000;
+
     // Execute opcode.
+    match decoded {
+        0xA00 => {},
+        _     => { panic!("Undefined instruction: {}", c8.opcode) }
+    };
 
     // Update timers.
 }
