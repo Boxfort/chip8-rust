@@ -1,7 +1,8 @@
 extern crate sdl2;
 
-const DIMENSIONS : (u32, u32)   = (640,320); // Dimensions to be used when creating window.
-const TITLE      : &'static str =    "Chip8"; // Title to be displayed on the window.
+const W_BOUNDS:  (u32, u32)   = (640,320);     // Window resolution.
+const C8_BOUNDS: (u8,  u8)    =  (64, 32);     // Internal chip8 resolution.
+const TITLE:         &'static str =   "Chip8"; // Title to be displayed on the window.
 
 const CHI8_FONTSET: [u8; 80] = [
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -23,16 +24,16 @@ const CHI8_FONTSET: [u8; 80] = [
 ];
 
 struct Chip8 {
-    opcode: u16,         // The current opcode.
-    memory: [u8; 4096],  // Chip8 memory, 4k.
-    v:      [u8; 16],    // General purpose registers.
-    i:      u16,         // Index register.
-    pc:     u16,         // Program counter.
-    gfx:    [u8; 64*32], // Black and white screen of 2048 pixels.
+    opcode: u16,                           // The current opcode.
+    memory: [u8; 4096],                    // Chip8 memory, 4k.
+    v:      [u8; 16],                      // General purpose registers.
+    i:      u16,                           // Index register.
+    pc:     u16,                           // Program counter.
+    gfx:    [u8; C8_BOUNDS.0*C8_BOUNDS.1], // Pixel data.
     delay_timer: u8,
     sound_timer: u8,
-    stack:  [u16; 16],   // Stack used to remember location before a jump.
-    sp:     u16,         // Stack pointer.
+    stack:  [u16; 16],                     // Stack used to remember location before a jump.
+    sp:     u16,                           // Stack pointer.
     key:    [u16; 16]
 }
 
@@ -61,9 +62,14 @@ fn main() {
                         canvas.set_draw_color(sdl2::pixels::Color::RGB(0,250,0));
                         for i in 0..c8.gfx.len(){
                             if c8.gfx[i] != 0 {
-                                let x : i32 = (i as i32 % 64) * (DIMENSIONS.0 as i32 / 64);
-                                let y : i32 = (i as i32 / 64) * (DIMENSIONS.1 as i32 / 32);
-                                canvas.fill_rect(sdl2::rect::Rect::new(x,y,DIMENSIONS.0/64,DIMENSIONS.1/32));
+                                let x : i32 = (i as i16 % C8_BOUNDS.0) *
+                                              (W_BOUNDS.0 as i16 / C8_BOUNDS.0);
+                                let y : i32 = (i as i16 / C8_BOUNDS.0) *
+                                              (W_BOUNDS.1 as i16 / C8_BOUNDS.1);
+                                canvas.fill_rect(sdl2::rect::Rect::new(x,
+                                                                       y,
+                                                                       W_BOUNDS.0/C8_BOUNDS.0,
+                                                                       DIMENSIONS.1/C8_BOUNDS.1));
                             }
                         }
                         canvas.present();
