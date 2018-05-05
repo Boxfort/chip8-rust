@@ -23,17 +23,17 @@ const CHI8_FONTSET: [u8; 80] = [
 ];
 
 struct Chip8 {
-    opcode: u16,           // The current opcode.
-    memory: [u8; 4096],    // Chip8 memory, 4k.
-    v:      [u8; 16],      // General purpose registers.
-    i:      u16,           // Index register.
-    pc:     u16,           // Program counter.
-    gfx:    [u8; (64*32)], // Pixel data.
+    opcode:      u16,           // The current opcode.
+    memory:      [u8; 4096],    // Chip8 memory, 4k.
+    v:           [u8; 16],      // General purpose registers.
+    i:           u16,           // Index register.
+    pc:          u16,           // Program counter.
+    gfx:         [u8; 64*32], // Pixel data.
     delay_timer: u8,
     sound_timer: u8,
-    stack:  [u16; 16],     // Stack used to remember location before a jump.
-    sp:     u16,           // Stack pointer.
-    key:    [u16; 16]
+    stack:       [u16; 16],     // Stack used to remember location before a jump.
+    sp:          u16,           // Stack pointer.
+    key:         [u16; 16]
 }
 
 fn main() {
@@ -94,21 +94,19 @@ fn window_initialise() -> (sdl2::render::Canvas<sdl2::video::Window>, sdl2::Even
 /// Initialises a new 'Chip8' and sets all integer
 /// fields and arrays to zero, then returns it.
 fn chip8_initialise() -> Chip8 {
-    let mut c8 = Chip8 {
-        opcode : 0,
-        memory : [0_u8; 4096],
-        v      : [0_u8; 16],
-        i      : 0,
-        pc     : 0x200,
-        gfx    : [0_u8; 64*32],
+    Chip8 {
+        opcode:      0,
+        memory:      [0_u8; 4096],
+        v:           [0_u8; 16],
+        i:           0,
+        pc:          0x200,
+        gfx:         [0_u8; 64*32],
         delay_timer: 0,
         sound_timer: 0,
-        stack  : [0_u16; 16],
-        sp     : 0,
-        key    : [0_u16; 16]
+        stack:       [0_u16; 16],
+        sp:          0,
+        key:         [0_u16; 16]
     };
-
-    c8
 }
 
 fn chip8_load_game(c8: &mut Chip8, filename: &str) {
