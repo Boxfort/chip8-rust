@@ -45,6 +45,7 @@ fn main() {
     // Load game into memory
 
     'a : loop {
+        chip8_execute(&mut c8);
         for event in events.poll_iter() {
             match event {
                 sdl2::event::Event::Quit{..} => break 'a,
@@ -125,10 +126,20 @@ fn chip8_execute(c8: &mut Chip8) {
     // Execute opcode.
     match decoded {
         0xA00 => {},
-        _     => { panic!("Undefined instruction: {}", c8.opcode) }
+        _     => { panic!("Undefined instruction: 0x{:X}", c8.opcode) }
     };
 
     // Update timers.
+    if c8.delay_timer > 0 {
+        c8.delay_timer = c8.delay_timer - 1;
+    }
+
+    if c8.sound_timer > 0 {
+        if c8.sound_timer == 1 {
+            println!{"BEEP!"};
+        }
+        c8.sound_timer = c8.sound_timer - 1;
+    }
 }
 
 fn chip8_draw(c8: &Chip8, canvas: &mut sdl2::render::Canvas<sdl2::video::Window>) {
