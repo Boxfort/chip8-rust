@@ -1,3 +1,5 @@
+extern crate sdl2;
+
 const CHI8_FONTSET: [u8; 80] = [
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
     0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -33,18 +35,44 @@ struct Chip8 {
 
 fn main() {
     // Initialise graphics
+    let (mut window, mut events) = window_initialise();
     // Initialise input
 
     // Initialise chip8
     let mut c8 = chip8_initialise();
     // Load game into memory
 
+    window.show();
+    'a : loop {
+        for event in events.poll_iter() {
+            match event {
+                sdl2::event::Event::Quit{..} => break 'a,
+                _                            => continue
+            }
+        }
+    }
+
+/*
     loop {
         // Emulate cycle
         // If draw flag
             // update screen
         // store key presses
     }
+*/
+}
+
+fn window_initialise() -> (sdl2::video::Window, sdl2::EventPump) {
+    let ctx = sdl2::init().unwrap();
+    let video_ctx = ctx.video().unwrap();
+    let mut events = ctx.event_pump().unwrap();
+
+    let mut window = match video_ctx.window("Chip8", 600, 400).position_centered().opengl().build() {
+        Ok(window) => window,
+        Err(err) => panic!("Failed to create window: {}", err)
+    };
+
+    (window, events)
 }
 
 fn chip8_initialise() -> Chip8 {
