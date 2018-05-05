@@ -106,7 +106,7 @@ fn chip8_initialise() -> Chip8 {
         stack:       [0_u16; 16],
         sp:          0,
         key:         [0_u16; 16]
-    };
+    }
 }
 
 fn chip8_load_game(c8: &mut Chip8, filename: &str) {
