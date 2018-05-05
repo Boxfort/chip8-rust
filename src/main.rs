@@ -1,7 +1,7 @@
 extern crate sdl2;
 
-const DIMESIONS : (u32, u32)   = (600, 400);
-const TITLE     : &'static str =    "Chip8";
+const DIMENSIONS : (u32, u32)   = (640,320); // Dimensions to be used when creating window.
+const TITLE      : &'static str =    "Chip8"; // Title to be displayed on the window.
 
 const CHI8_FONTSET: [u8; 80] = [
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -37,31 +37,61 @@ struct Chip8 {
 }
 
 fn main() {
-    // Initialise graphics
+    // Initialise Window
     let (mut canvas, mut events) = window_initialise();
-    // Initialise input
 
     // Initialise chip8
     let mut c8 = chip8_initialise();
     // Load game into memory
+    
+    for i in 0..2048 {
+            c8.gfx[i] = 255;
+    }
 
+    chip8_draw(&mut canvas);
     'a : loop {
-        window_render(&mut canvas);
         for event in events.poll_iter() {
             match event {
                 sdl2::event::Event::Quit{..} => break 'a,
+                sdl2::event::Event::KeyDown {keycode: Some(keycode), ..} => {
+                    if keycode == sdl2::keyboard::Keycode::Escape {
+                        break 'a
+                    }
+                    else if keycode == sdl2::keyboard::Keycode::Space {
+                        canvas.set_draw_color(sdl2::pixels::Color::RGB(0,250,0));
+                        for i in 0..c8.gfx.len(){
+                            if c8.gfx[i] != 0 {
+                                let x : i32 = (i as i32 % 64) * (DIMENSIONS.0 as i32 / 64);
+                                let y : i32 = (i as i32 / 64) * (DIMENSIONS.1 as i32 / 32);
+                                canvas.fill_rect(sdl2::rect::Rect::new(x,y,DIMENSIONS.0/64,DIMENSIONS.1/32));
+                            }
+                        }
+                        canvas.present();
+                    }
+                }
                 _                            => continue
             }
         }
     }
 }
 
+/// Initialise a new SDL2 window.
+///
+/// Initialises a new sdl2 context from which is creates a
+/// video context and event pump. From the video context a new
+/// window is created and shown, and from the window the canvas
+/// is taken. The function then returns the canvas (for later
+/// rendering to) and the event pump (to detect key presses).
+///
+/// # Panics
+/// If the window cannot be created from the video context the
+/// program will panic.
 fn window_initialise() -> (sdl2::render::Canvas<sdl2::video::Window>, sdl2::EventPump) {
     let ctx = sdl2::init().unwrap();
     let video_ctx = ctx.video().unwrap();
     let mut events = ctx.event_pump().unwrap();
 
-    let mut window = match video_ctx.window(TITLE, DIMESIONS.0, DIMESIONS.1).position_centered().opengl().build() {
+    let mut window = match video_ctx.window(TITLE, DIMENSIONS.0, DIMENSIONS.1).position_centered().opengl().build() {
         Ok(window) => window,
         Err(err) => panic!("Failed to create window: {}", err)
     };
@@ -72,12 +102,12 @@ fn window_initialise() -> (sdl2::render::Canvas<sdl2::video::Window>, sdl2::Even
     (canvas, events)
 }
 
-fn window_render(canvas: &mut sdl2::render::Canvas<sdl2::video::Window>) {
-    canvas.set_draw_color(sdl2::pixels::Color::RGB(255,0,0));
-    canvas.clear();
-    canvas.present();
-}
 
+
+/// Constructs a new 'Chip8' struct.
+///
+/// Initialises a new 'Chip8' and sets all integer
+/// fields and arrays to zero, then returns it.
 fn chip8_initialise() -> Chip8 {
     let mut c8 = Chip8 {
         opcode : 0,
@@ -104,6 +134,8 @@ fn chip8_execute(c8: &mut Chip8) {
     // Update timers.
 }
 
-fn chip8_draw(c8: &mut Chip8) {
-    // Draw to screen.
+fn chip8_draw(canvas: &mut sdl2::render::Canvas<sdl2::video::Window>) {
+    canvas.set_draw_color(sdl2::pixels::Color::RGB(0,0,0));
+    canvas.clear();
+    canvas.present();
 }
