@@ -1,8 +1,7 @@
 extern crate sdl2;
 
-const W_BOUNDS:  (u32, u32)   = (640,320);     // Window resolution.
-const C8_BOUNDS: (u8,  u8)    =  (64, 32);     // Internal chip8 resolution.
-const TITLE:         &'static str =   "Chip8"; // Title to be displayed on the window.
+const W_BOUNDS: (u32, u32)   = (640,320); // Window resolution.
+const TITLE:    &'static str =   "Chip8"; // Title to be displayed on the window.
 
 const CHI8_FONTSET: [u8; 80] = [
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -24,16 +23,16 @@ const CHI8_FONTSET: [u8; 80] = [
 ];
 
 struct Chip8 {
-    opcode: u16,                           // The current opcode.
-    memory: [u8; 4096],                    // Chip8 memory, 4k.
-    v:      [u8; 16],                      // General purpose registers.
-    i:      u16,                           // Index register.
-    pc:     u16,                           // Program counter.
-    gfx:    [u8; C8_BOUNDS.0*C8_BOUNDS.1], // Pixel data.
+    opcode: u16,           // The current opcode.
+    memory: [u8; 4096],    // Chip8 memory, 4k.
+    v:      [u8; 16],      // General purpose registers.
+    i:      u16,           // Index register.
+    pc:     u16,           // Program counter.
+    gfx:    [u8; (64*32)], // Pixel data.
     delay_timer: u8,
     sound_timer: u8,
-    stack:  [u16; 16],                     // Stack used to remember location before a jump.
-    sp:     u16,                           // Stack pointer.
+    stack:  [u16; 16],     // Stack used to remember location before a jump.
+    sp:     u16,           // Stack pointer.
     key:    [u16; 16]
 }
 
@@ -45,9 +44,6 @@ fn main() {
     let mut c8 = chip8_initialise();
     // Load game into memory
     
-    for i in 0..2048 {
-            c8.gfx[i] = 255;
-    }
 
     chip8_draw(&mut canvas);
     'a : loop {
@@ -59,20 +55,7 @@ fn main() {
                         break 'a
                     }
                     else if keycode == sdl2::keyboard::Keycode::Space {
-                        canvas.set_draw_color(sdl2::pixels::Color::RGB(0,250,0));
-                        for i in 0..c8.gfx.len(){
-                            if c8.gfx[i] != 0 {
-                                let x : i32 = (i as i16 % C8_BOUNDS.0) *
-                                              (W_BOUNDS.0 as i16 / C8_BOUNDS.0);
-                                let y : i32 = (i as i16 / C8_BOUNDS.0) *
-                                              (W_BOUNDS.1 as i16 / C8_BOUNDS.1);
-                                canvas.fill_rect(sdl2::rect::Rect::new(x,
-                                                                       y,
-                                                                       W_BOUNDS.0/C8_BOUNDS.0,
-                                                                       DIMENSIONS.1/C8_BOUNDS.1));
-                            }
-                        }
-                        canvas.present();
+                        chip8_draw(c8, canvas);
                     }
                 }
                 _                            => continue
@@ -108,8 +91,6 @@ fn window_initialise() -> (sdl2::render::Canvas<sdl2::video::Window>, sdl2::Even
     (canvas, events)
 }
 
-
-
 /// Constructs a new 'Chip8' struct.
 ///
 /// Initialises a new 'Chip8' and sets all integer
@@ -132,6 +113,10 @@ fn chip8_initialise() -> Chip8 {
     c8
 }
 
+fn chip8_load_game(c8: &mut Chip8, filename: &str) {
+    // Load game from file.
+}
+
 fn chip8_execute(c8: &mut Chip8) {
     // Fetch opcode.
     // Decode opcode.
@@ -140,8 +125,18 @@ fn chip8_execute(c8: &mut Chip8) {
     // Update timers.
 }
 
-fn chip8_draw(canvas: &mut sdl2::render::Canvas<sdl2::video::Window>) {
+fn chip8_draw(c8: &mut Chip8, canvas: &mut sdl2::render::Canvas<sdl2::video::Window>) {
     canvas.set_draw_color(sdl2::pixels::Color::RGB(0,0,0));
     canvas.clear();
+    canvas.set_draw_color(sdl2::pixels::Color::RGB(255,255,255));
+        for i in 0..c8.gfx.len(){
+            if c8.gfx[i] != 0 {
+                let x : i32 = (i as i16 % 64) *
+                              (W_BOUNDS.0 as i16 / 64);
+                let y : i32 = (i as i16 / 64) *
+                              (W_BOUNDS.1 as i16 / 32);
+                canvas.fill_rect(sdl2::rect::Rect::new(x,y,W_BOUNDS.0/64,W_BOUNDS.1/32));
+            }
+        }
     canvas.present();
 }
