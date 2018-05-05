@@ -43,9 +43,7 @@ fn main() {
     // Initialise chip8
     let mut c8 = chip8_initialise();
     // Load game into memory
-    
 
-    chip8_draw(&mut canvas);
     'a : loop {
         for event in events.poll_iter() {
             match event {
@@ -55,7 +53,7 @@ fn main() {
                         break 'a
                     }
                     else if keycode == sdl2::keyboard::Keycode::Space {
-                        chip8_draw(c8, canvas);
+                        chip8_draw(&c8, &mut canvas);
                     }
                 }
                 _                            => continue
@@ -80,7 +78,7 @@ fn window_initialise() -> (sdl2::render::Canvas<sdl2::video::Window>, sdl2::Even
     let video_ctx = ctx.video().unwrap();
     let mut events = ctx.event_pump().unwrap();
 
-    let mut window = match video_ctx.window(TITLE, DIMENSIONS.0, DIMENSIONS.1).position_centered().opengl().build() {
+    let mut window = match video_ctx.window(TITLE, W_BOUNDS.0, W_BOUNDS.1).position_centered().opengl().build() {
         Ok(window) => window,
         Err(err) => panic!("Failed to create window: {}", err)
     };
@@ -125,18 +123,16 @@ fn chip8_execute(c8: &mut Chip8) {
     // Update timers.
 }
 
-fn chip8_draw(c8: &mut Chip8, canvas: &mut sdl2::render::Canvas<sdl2::video::Window>) {
+fn chip8_draw(c8: &Chip8, canvas: &mut sdl2::render::Canvas<sdl2::video::Window>) {
     canvas.set_draw_color(sdl2::pixels::Color::RGB(0,0,0));
     canvas.clear();
     canvas.set_draw_color(sdl2::pixels::Color::RGB(255,255,255));
-        for i in 0..c8.gfx.len(){
-            if c8.gfx[i] != 0 {
-                let x : i32 = (i as i16 % 64) *
-                              (W_BOUNDS.0 as i16 / 64);
-                let y : i32 = (i as i16 / 64) *
-                              (W_BOUNDS.1 as i16 / 32);
-                canvas.fill_rect(sdl2::rect::Rect::new(x,y,W_BOUNDS.0/64,W_BOUNDS.1/32));
-            }
+    for i in 0..c8.gfx.len() {
+        if c8.gfx[i] != 0 {
+            let x : i32 = (i as i32 % 64) * (W_BOUNDS.0 as i32 / 64);
+            let y : i32 = (i as i32 / 64) * (W_BOUNDS.1 as i32 / 32);
+            canvas.fill_rect(sdl2::rect::Rect::new(x,y,W_BOUNDS.0/64,W_BOUNDS.1/32));
         }
+    }
     canvas.present();
 }
