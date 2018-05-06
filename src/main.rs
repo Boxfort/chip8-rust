@@ -160,13 +160,15 @@ fn chip8_execute(c8: &mut Chip8) {
                 0x0000 => { for elem in c8.gfx.iter_mut() { *elem = 0; } },
                 // Return from subroutine.
                 0x000E => {
-                    sp -= 1;
-                    c8.pc = c8.stack[sp];
+                    c8.sp -= 1;
+                    c8.pc = c8.stack[c8.sp as usize];
                 },
                 _      => {}
             },
-        // Jump to address.
-        0x1000 => {  },
+        // Jump to address NNN.
+        0x1000 => {
+            c8.pc = c8.opcode & 0x0FFF;
+        },
         // Call subroutine.
         0x2000 => {  },
         // If Vx == NN skip next instruction.
