@@ -8,7 +8,7 @@ use sdl2::keyboard::Keycode;
 
 const W_BOUNDS: (u32, u32)   =                (640,320); // Window resolution.
 const TITLE:    &'static str =                  "Chip8"; // Title to be displayed on the window.
-const FILENAME: &'static str = "roms/Chip8 Picture.ch8";
+const FILENAME: &'static str = "roms/clock.ch8";
 
 const CHI8_FONTSET: [u8; 80] = [
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -158,6 +158,8 @@ fn chip8_load_game(c8: &mut Chip8, filename: &str) -> Result<(), std::io::Error>
 }
 
 fn chip8_handle_input(c8: &mut Chip8, events: &mut sdl2::EventPump) {
+    c8.key = [0_u8; 16];
+
     for event in events.poll_iter() {
         match event {
             sdl2::event::Event::Quit{..} => { std::process::exit(1) },
@@ -390,8 +392,22 @@ fn chip8_execute(c8: &mut Chip8) {
         },
         0xE000 =>
             match c8.opcode & 0x000F {
-                0x000E => {},
-                0x0001 => {},
+                // Skips the next instruction if the key stored in Vx is pressed.
+                0x000E => {
+                    if c8.key[c8.v[((c8.opcode & 0x0F00) >> 8) as usize] as usize] == 1 {
+                        c8.pc +=4;
+                    } else {
+                        c8.pc +=2;
+                    }
+                },
+                // Skips the next instruction if the key stored in VX is not pressed.
+                0x0001 => {
+                    if c8.key[c8.v[((c8.opcode & 0x0F00) >> 8) as usize] as usize] != 1 {
+                        c8.pc +=4;
+                    } else {
+                        c8.pc +=2;
+                    }
+                },
                 _      => { panic!("Undefined instruction: 0x{:X}", c8.opcode) }
             },
         0xF000 =>
@@ -409,7 +425,6 @@ fn chip8_execute(c8: &mut Chip8) {
                     match pos {
                         Some(i) => {
                             c8.v[((c8.opcode & 0x0F00) >> 8) as usize] = i as u8;
-                            c8.key[i] = 0;
                             c8.pc +=2;
                         },
                         None => {  }
