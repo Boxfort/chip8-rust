@@ -4,6 +4,7 @@ extern crate rand;
 use std::io::prelude::*;
 use std::fs::File;
 use rand::Rng;
+use sdl2::keyboard::Keycode;
 
 const W_BOUNDS: (u32, u32)   =                (640,320); // Window resolution.
 const TITLE:    &'static str =                  "Chip8"; // Title to be displayed on the window.
@@ -26,6 +27,25 @@ const CHI8_FONTSET: [u8; 80] = [
     0xE0, 0x90, 0x90, 0x90, 0xE0, // D
     0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
     0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+];
+
+const KEYMAP: [Keycode; 16] = [
+    Keycode::Num0,
+    Keycode::Num1,
+    Keycode::Num2,
+    Keycode::Num3,
+    Keycode::Num4,
+    Keycode::Num5,
+    Keycode::Num6,
+    Keycode::Num7,
+    Keycode::Num8,
+    Keycode::Num9,
+    Keycode::A,
+    Keycode::B,
+    Keycode::C,
+    Keycode::D,
+    Keycode::E,
+    Keycode::F
 ];
 
 struct Chip8 {
@@ -57,21 +77,13 @@ fn main() {
     chip8_load_game(&mut c8, FILENAME).expect("Could not load file.");
 
     'a : loop {
+
+        chip8_handle_input(&mut c8, &mut events);
         chip8_execute(&mut c8);
-        for event in events.poll_iter() {
-            match event {
-                sdl2::event::Event::Quit{..} => break 'a,
-                sdl2::event::Event::KeyDown {keycode: Some(keycode), ..} => {
-                    if keycode == sdl2::keyboard::Keycode::Escape {
-                        break 'a
-                    }
-                    else if keycode == sdl2::keyboard::Keycode::Space {
-                        chip8_draw(&c8, &mut canvas);
-                    }
-                }
-                _                            => continue
-            }
+        if c8.draw_flag {
+            chip8_draw(&mut c8, &mut canvas);
         }
+
     }
 }
 
@@ -145,11 +157,34 @@ fn chip8_load_game(c8: &mut Chip8, filename: &str) -> Result<(), std::io::Error>
     Ok(())
 }
 
+fn chip8_handle_input(c8: &mut Chip8, events: &mut sdl2::EventPump) {
+    for event in events.poll_iter() {
+        match event {
+            sdl2::event::Event::Quit{..} => { std::process::exit(1) },
+            sdl2::event::Event::KeyDown {keycode: Some(keycode), ..} => {
+                if keycode == sdl2::keyboard::Keycode::Escape {
+                    std::process::exit(1);
+                }
+
+                let pos = KEYMAP.iter().position(|&key| key == keycode);
+
+                match pos {
+                    Some(i) => c8.key[i] = 1,
+                    None => {}
+                }
+            },
+            _                            => continue
+        }
+    }
+}
+
 fn chip8_execute(c8: &mut Chip8) {
     // Fetch the 16 bit opcode from two sequential 8 bit pc locations, then
     // combine them by shifting the first byte back by 8 bits and ORing
     // by the second byte to combine both.
     c8.opcode = (c8.memory[c8.pc as usize] as u16) << 8 | c8.memory[(c8.pc + 1) as usize] as u16;
+
+    println!{"Executing opcode: 0x{:X}", c8.opcode};
 
     // Decode opcode by removing the first nibble to get operation type.
     match c8.opcode & 0xF000 {
@@ -163,7 +198,7 @@ fn chip8_execute(c8: &mut Chip8) {
                     c8.sp -= 1;
                     c8.pc = c8.stack[c8.sp as usize];
                 },
-                _      => {}
+                _      => { panic!("Undefined instruction: 0x{:X}", c8.opcode) }
             },
         // Jump to address NNN.
         0x1000 => {
@@ -298,7 +333,7 @@ fn chip8_execute(c8: &mut Chip8) {
 
                     c8.pc += 2;
                 },
-                _      => {}
+                _      => { panic!("Undefined instruction: 0x{:X}", c8.opcode) }
             },
         // If Vx != Vy skip next instruction.
         0x9000 => {
@@ -357,7 +392,7 @@ fn chip8_execute(c8: &mut Chip8) {
             match c8.opcode & 0x000F {
                 0x000E => {},
                 0x0001 => {},
-                _      => {}
+                _      => { panic!("Undefined instruction: 0x{:X}", c8.opcode) }
             },
         0xF000 =>
             match c8.opcode & 0x00FF {
@@ -418,7 +453,7 @@ fn chip8_execute(c8: &mut Chip8) {
 
                     c8.pc += 2;
                 },
-                _      => {}
+                _      => { panic!("Undefined instruction: 0x{:X}", c8.opcode) }
             }
         _      => { panic!("Undefined instruction: 0x{:X}", c8.opcode) }
     }
