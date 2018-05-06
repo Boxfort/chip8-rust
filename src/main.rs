@@ -159,7 +159,10 @@ fn chip8_execute(c8: &mut Chip8) {
                 // Clear the screen.
                 0x0000 => { for elem in c8.gfx.iter_mut() { *elem = 0; } },
                 // Return from subroutine.
-                0x000E => {},
+                0x000E => {
+                    sp -= 1;
+                    c8.pc = c8.stack[sp];
+                },
                 _      => {}
             },
         // Jump to address.
@@ -169,16 +172,22 @@ fn chip8_execute(c8: &mut Chip8) {
         // If Vx == NN skip next instruction.
         0x3000 => {
             if c8.v[((c8.opcode & 0x0F00) >> 8) as usize] == (c8.opcode & 0x00FF) as u8 {
+                c8.pc += 4;
+            } else {
                 c8.pc += 2;
             }},
         // If Vx != NN skip next instruction.
         0x4000 => {
             if c8.v[((c8.opcode & 0x0F00) >> 8) as usize] != (c8.opcode & 0x00FF) as u8 {
+                c8.pc += 4;
+            } else {
                 c8.pc += 2;
             }},
         // If Vx == Vy skip next instruction.
         0x5000 => {
             if c8.v[((c8.opcode & 0x0F00) >> 8) as usize] == c8.v[((c8.opcode & 0x00F0) >> 4) as usize] {
+                c8.pc += 4;
+            } else {
                 c8.pc += 2;
             }},
         // Set Vx == NN
@@ -190,24 +199,32 @@ fn chip8_execute(c8: &mut Chip8) {
                 // Set Vx to Vy
                 0x0000 => {
                     c8.v[((c8.opcode & 0x0F00) >> 8) as usize] = c8.v[((c8.opcode & 0x00F0) >> 4) as usize];
+
+                    c8.pc += 2;
                 },
                 // Set Vx to Vx OR Vy
                 0x0001 => {
                     c8.v[((c8.opcode & 0x0F00) >> 8) as usize] =
                     c8.v[((c8.opcode & 0x0F00) >> 8) as usize] |
                     c8.v[((c8.opcode & 0x00F0) >> 4) as usize];
+
+                    c8.pc += 2;
                 },
                 // Set Vx to Vx AND Vy
                 0x0002 => {
                     c8.v[((c8.opcode & 0x0F00) >> 8) as usize] =
                     c8.v[((c8.opcode & 0x0F00) >> 8) as usize] &
                     c8.v[((c8.opcode & 0x00F0) >> 4) as usize];
+
+                    c8.pc += 2;
                 },
                 // Set Vx to Vx XOR Vy
                 0x0003 => {
                     c8.v[((c8.opcode & 0x0F00) >> 8) as usize] =
                     c8.v[((c8.opcode & 0x0F00) >> 8) as usize] ^
                     c8.v[((c8.opcode & 0x00F0) >> 4) as usize];
+
+                    c8.pc += 2;
                 },
                 // Set Vx to Vx + Vy (Vf is set to 1 on carry)
                 0x0004 => {
@@ -222,6 +239,8 @@ fn chip8_execute(c8: &mut Chip8) {
                     } else {
                         c8.v[15] = 0;
                     }
+
+                    c8.pc += 2;
                 },
                 // Set Vx to Vx - Vy (Vf is set to 1 on borrow)
                 0x0005 => {
@@ -236,7 +255,8 @@ fn chip8_execute(c8: &mut Chip8) {
                     } else {
                         c8.v[15] = 0;
                     }
- 
+
+                    c8.pc += 2;
                 },
                 // Set Vf to least significant bit of Vy and Vx to Vy >> 1
                 0x0006 => {
@@ -246,6 +266,8 @@ fn chip8_execute(c8: &mut Chip8) {
 
                     c8.v[((c8.opcode & 0x0F00) >> 8) as usize] =
                     c8.v[((c8.opcode & 0x00F0) >> 4) as usize];
+
+                    c8.pc += 2;
                 },
                 // Sets Vx to Vy - Vx. Vf is set to 0 on borrow.
                 0x0007 => {
@@ -259,7 +281,10 @@ fn chip8_execute(c8: &mut Chip8) {
                         c8.v[15] = 0;
                     } else {
                         c8.v[15] = 1;
-                    } 
+                    }
+
+
+                    c8.pc += 2;
                 },
                 // Set Vf to most significant bit of Vy and Vx to Vy << 1
                 0x000E => {
@@ -269,28 +294,38 @@ fn chip8_execute(c8: &mut Chip8) {
 
                     c8.v[((c8.opcode & 0x0F00) >> 8) as usize] =
                     c8.v[((c8.opcode & 0x00F0) >> 4) as usize];
+
+                    c8.pc += 2;
                 },
                 _      => {}
             },
         // If Vx != Vy skip next instruction.
         0x9000 => {
             if c8.v[((c8.opcode & 0x0F00) >> 8) as usize] != c8.v[((c8.opcode & 0x00F0) >> 4) as usize] {
+                c8.pc += 4;
+            }else{
                 c8.pc += 2;
             }
         },
         // Sets I to the address NNN.
         0xA000 => {
             c8.i = c8.opcode & 0x0FFF;
+
+            c8.pc += 2;
         },
         // Jumps to the address NNN plus V0.
         0xB000 => {
             c8.pc = (c8.opcode & 0x0FFF) + c8.v[0] as u16;
+
+            c8.pc += 2;
         },
         // Sets VX to the result a random u8 AND NN
         0xC000 => {
             c8.v[((c8.opcode & 0x0F00) >> 8) as usize] =
                 rand::thread_rng().gen::<u8>() &
                 (c8.opcode & 0x00FF) as u8;
+
+            c8.pc += 2;
         },
         // Draw a sprite at Vx, Vy, with a width of 8 and height N
         0xD000 => {
@@ -310,10 +345,11 @@ fn chip8_execute(c8: &mut Chip8) {
                         c8.gfx[((y+h * 64) + (x+w)) as usize] ^= 0xFF;
                     }
 
-                    c8.draw_flag = true;
-                    c8.pc += 2;
                 }
             }
+
+            c8.draw_flag = true;
+            c8.pc += 2;
         },
         0xE000 =>
             match c8.opcode & 0x000F {
