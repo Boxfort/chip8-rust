@@ -28,7 +28,7 @@ struct Chip8 {
     v:           [u8; 16],      // General purpose registers.
     i:           u16,           // Index register.
     pc:          u16,           // Program counter.
-    gfx:         [u8; 64*32], // Pixel data.
+    gfx:         [u8; 64*32],   // Pixel data.
     delay_timer: u8,
     sound_timer: u8,
     stack:       [u16; 16],     // Stack used to remember location before a jump.
@@ -121,12 +121,59 @@ fn chip8_execute(c8: &mut Chip8) {
     c8.opcode = (c8.memory[c8.pc as usize] as u16) << 8 | c8.memory[(c8.pc + 1) as usize] as u16;
 
     // Decode opcode by removing the first nibble to get operation type.
-    let decoded = c8.opcode & 0xF000;
-
-    // Execute opcode.
-    match decoded {
-        0xA00 => {},
-        _     => { panic!("Undefined instruction: 0x{:X}", c8.opcode) }
+    match (c8.opcode & 0xF000) {
+        // Execute opcode.
+        0x0000 =>
+            match (c8.opcode & 0x000F) {
+                0x0000 => {},
+                0x000E => {},
+                _      => {}
+            },
+        0x1000 => {},
+        0x2000 => {},
+        0x3000 => {},
+        0x4000 => {},
+        0x5000 => {},
+        0x6000 => {},
+        0x7000 => {},
+        0x8000 =>
+            match (c8.opcode & 0x000F) {
+                0x0000 => {},
+                0x0001 => {},
+                0x0002 => {},
+                0x0003 => {},
+                0x0004 => {},
+                0x0005 => {},
+                0x0006 => {},
+                0x0007 => {},
+                0x000E => {},
+                _      => {}
+            },
+        0x9000 => {},
+        0xA000 => {},
+        0xB000 => {},
+        0xC000 => {},
+        0xD000 => {},
+        0xE000 =>
+            match (c8.opcode & 0x000F) {
+                0x000E => {},
+                0x0001 => {},
+                _      => {}
+            },
+        0xF000 =>
+            match (c8.opcode & 0x00FF) {
+                0x0007 => {},
+                0x000A => {},
+                0x0015 => {},
+                0x0018 => {},
+                0x001E => {},
+                0x0029 => {},
+                0x0033 => {},
+                0x0055 => {},
+                0x0065 => {},
+                _      => {}
+            }
+        _      => { panic!("Undefined instruction: 0x{:X}", c8.opcode) }
     };
 
     // Update timers.
@@ -142,6 +189,7 @@ fn chip8_execute(c8: &mut Chip8) {
     }
 }
 
+/// Clears the screen and draws the contents of c8.gfx.
 fn chip8_draw(c8: &Chip8, canvas: &mut sdl2::render::Canvas<sdl2::video::Window>) {
     canvas.set_draw_color(sdl2::pixels::Color::RGB(0,0,0));
     canvas.clear();
