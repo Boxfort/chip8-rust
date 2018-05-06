@@ -59,7 +59,7 @@ struct Chip8 {
     sound_timer: u8,
     stack:       [u16; 16],     // Stack used to remember location before a jump.
     sp:          u16,           // Stack pointer.
-    key:         [u16; 16],
+    key:         [u8; 16],
     draw_flag:   bool
 }
 
@@ -130,7 +130,7 @@ fn chip8_initialise() -> Chip8 {
         sound_timer: 0,
         stack:       [0_u16; 16],
         sp:          0,
-        key:         [0_u16; 16],
+        key:         [0_u8; 16],
         draw_flag:   false
     }
 }
@@ -402,7 +402,19 @@ fn chip8_execute(c8: &mut Chip8) {
 
                     c8.pc += 2;
                 },
-                0x000A => {},
+                // A key press is awaited, and then stored in Vx.
+                0x000A => {
+                    let pos = c8.key.iter().position(|&key| key == 1);
+
+                    match pos {
+                        Some(i) => {
+                            c8.v[((c8.opcode & 0x0F00) >> 8) as usize] = i as u8;
+                            c8.key[i] = 0;
+                            c8.pc +=2;
+                        },
+                        None => {  }
+                    };
+                },
                 // Set the delay timer to Vx.
                 0x0015 => {
                     c8.delay_timer = ((c8.opcode & 0x0F00) >> 8) as u8;
