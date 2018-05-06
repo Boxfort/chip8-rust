@@ -167,27 +167,105 @@ fn chip8_execute(c8: &mut Chip8) {
             if c8.v[((c8.opcode & 0x0F00) >> 8) as usize] == (c8.opcode & 0x00FF) as u8 {
                 c8.pc += 2;
             }},
+        // If Vx != NN skip next instruction.
         0x4000 => {
             if c8.v[((c8.opcode & 0x0F00) >> 8) as usize] != (c8.opcode & 0x00FF) as u8 {
                 c8.pc += 2;
             }},
+        // If Vx == Vy skip next instruction.
         0x5000 => {
             if c8.v[((c8.opcode & 0x0F00) >> 8) as usize] != c8.v[((c8.opcode & 0x00F0) >> 4) as usize] {
                 c8.pc += 2;
             }},
-        0x6000 => { c8.v[((c8.opcode & 0x0F00) >> 8) as usize] = (c8.opcode & 0x00FF) as u8},
-        0x7000 => {  },
+        // Set Vx == NN
+        0x6000 => { c8.v[((c8.opcode & 0x0F00) >> 8) as usize] = (c8.opcode & 0x00FF) as u8;},
+        // Add NN to Vx (Carry flag is not changed)
+        0x7000 => { c8.v[((c8.opcode & 0x0F00) >> 8) as usize] += (c8.opcode & 0x00FF) as u8;},
         0x8000 =>
             match c8.opcode & 0x000F {
-                0x0000 => {},
-                0x0001 => {},
-                0x0002 => {},
-                0x0003 => {},
-                0x0004 => {},
-                0x0005 => {},
-                0x0006 => {},
-                0x0007 => {},
-                0x000E => {},
+                // Set Vx to Vy
+                0x0000 => {
+                    c8.v[((c8.opcode & 0x0F00) >> 8) as usize] = c8.v[((c8.opcode & 0x00F0) >> 4) as usize];
+                },
+                // Set Vx to Vx OR Vy
+                0x0001 => {
+                    c8.v[((c8.opcode & 0x0F00) >> 8) as usize] =
+                    c8.v[((c8.opcode & 0x0F00) >> 8) as usize] |
+                    c8.v[((c8.opcode & 0x00F0) >> 4) as usize];
+                },
+                // Set Vx to Vx AND Vy
+                0x0002 => {
+                    c8.v[((c8.opcode & 0x0F00) >> 8) as usize] =
+                    c8.v[((c8.opcode & 0x0F00) >> 8) as usize] &
+                    c8.v[((c8.opcode & 0x00F0) >> 4) as usize];
+                },
+                // Set Vx to Vx XOR Vy
+                0x0003 => {
+                    c8.v[((c8.opcode & 0x0F00) >> 8) as usize] =
+                    c8.v[((c8.opcode & 0x0F00) >> 8) as usize] ^
+                    c8.v[((c8.opcode & 0x00F0) >> 4) as usize];
+                },
+                // Set Vx to Vx + Vy (Vf is set to 1 on carry)
+                0x0004 => {
+                    let total: u16 =
+                    c8.v[((c8.opcode & 0x0F00) >> 8) as usize] as u16 +
+                    c8.v[((c8.opcode & 0x00F0) >> 4) as usize] as u16;
+
+                    c8.v[((c8.opcode & 0x0F00) >> 8) as usize] = total as u8;
+
+                    if total > 255 {
+                        c8.v[16] = 1;
+                    } else {
+                        c8.v[16] = 0;
+                    }
+                },
+                // Set Vx to Vx - Vy (Vf is set to 1 on borrow)
+                0x0005 => {
+                    let total: u16 =
+                    c8.v[((c8.opcode & 0x0F00) >> 8) as usize] as u16 -
+                    c8.v[((c8.opcode & 0x00F0) >> 4) as usize] as u16;
+
+                    c8.v[((c8.opcode & 0x0F00) >> 8) as usize] = total as u8;
+
+                    if total <= 0{
+                        c8.v[16] = 1;
+                    } else {
+                        c8.v[16] = 0;
+                    }
+ 
+                },
+                // Set Vf to least significant bit of Vy and Vx to Vy >> 1
+                0x0006 => {
+                    c8.v[16] = c8.v[((c8.opcode & 0x00F0) >> 4) as usize] & 0b00000001;
+                    c8.v[((c8.opcode & 0x00F0) >> 4) as usize] =
+                    c8.v[((c8.opcode & 0x00F0) >> 4) as usize] >> 1;
+
+                    c8.v[((c8.opcode & 0x0F00) >> 8) as usize] =
+                    c8.v[((c8.opcode & 0x00F0) >> 4) as usize];
+                },
+                // Sets Vx to Vy - Vx. Vf is set to 0 on borrow.
+                0x0007 => {
+                    let total: u16 =
+                    c8.v[((c8.opcode & 0x00F0) >> 8) as usize] as u16 -
+                    c8.v[((c8.opcode & 0x0F00) >> 8) as usize] as u16;
+
+                    c8.v[((c8.opcode & 0x0F00) >> 8) as usize] = total as u8;
+
+                    if total <= 0{
+                        c8.v[16] = 0;
+                    } else {
+                        c8.v[16] = 1;
+                    } 
+                },
+                // Set Vf to most significant bit of Vy and Vx to Vy << 1
+                0x000E => {
+                    c8.v[16] = c8.v[((c8.opcode & 0x00F0) >> 4) as usize] & 0b10000000;
+                    c8.v[((c8.opcode & 0x00F0) >> 4) as usize] =
+                    c8.v[((c8.opcode & 0x00F0) >> 4) as usize] << 1;
+
+                    c8.v[((c8.opcode & 0x0F00) >> 8) as usize] =
+                    c8.v[((c8.opcode & 0x00F0) >> 4) as usize];
+                },
                 _      => {}
             },
         0x9000 => {},
