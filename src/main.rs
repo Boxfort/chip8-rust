@@ -1,7 +1,11 @@
 extern crate sdl2;
 
-const W_BOUNDS: (u32, u32)   = (640,320); // Window resolution.
-const TITLE:    &'static str =   "Chip8"; // Title to be displayed on the window.
+use std::io::prelude::*;
+use std::fs::File;
+
+const W_BOUNDS: (u32, u32)   =                (640,320); // Window resolution.
+const TITLE:    &'static str =                  "Chip8"; // Title to be displayed on the window.
+const FILENAME: &'static str = "roms/Chip8 Picture.ch8";
 
 const CHI8_FONTSET: [u8; 80] = [
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -47,6 +51,7 @@ fn main() {
     chip8_load_fontset(&mut c8);
 
     // Load game into memory
+    chip8_load_game(&mut c8, FILENAME).expect("Could not load file.");
 
     'a : loop {
         chip8_execute(&mut c8);
@@ -81,7 +86,7 @@ fn main() {
 fn window_initialise() -> (sdl2::render::Canvas<sdl2::video::Window>, sdl2::EventPump) {
     let ctx = sdl2::init().unwrap();
     let video_ctx = ctx.video().unwrap();
-    let mut events = ctx.event_pump().unwrap();
+    let events = ctx.event_pump().unwrap();
 
     let mut window = match video_ctx.window(TITLE, W_BOUNDS.0, W_BOUNDS.1).position_centered().opengl().build() {
         Ok(window) => window,
@@ -89,7 +94,7 @@ fn window_initialise() -> (sdl2::render::Canvas<sdl2::video::Window>, sdl2::Even
     };
 
     window.show();
-    let mut canvas = window.into_canvas().build().unwrap();
+    let canvas = window.into_canvas().build().unwrap();
 
     (canvas, events)
 }
@@ -122,8 +127,18 @@ fn chip8_load_fontset(c8: &mut Chip8) {
     }
 }
 
-fn chip8_load_game(c8: &mut Chip8, filename: &str) {
-    // Load game from file.
+fn chip8_load_game(c8: &mut Chip8, filename: &str) -> Result<(), std::io::Error> {
+    // Total available memory (4096) minus that used by the system (512)
+    let mut buffer = [0; 3584];
+    let mut file = File::open(filename)?;
+    file.read(&mut buffer)?;
+
+    // Load buffer into chip8 memory.
+    for i in 0..3584 {
+        c8.memory[i + 512] = buffer[i];
+    }
+
+    Ok(())
 }
 
 fn chip8_execute(c8: &mut Chip8) {
