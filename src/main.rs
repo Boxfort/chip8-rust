@@ -340,7 +340,7 @@ fn chip8_execute(c8: &mut Chip8) {
             for h in 0..c8.opcode & 0x000F {
                 for w in 0..8 {
                     // Each byte at memory[i] represents a row of 8 pixels
-                    if c8.memory[c8.i + h] & (0x80 >> w) != 0 {
+                    if c8.memory[(c8.i + h) as usize] & (0x80 >> w) != 0 {
                         if c8.gfx[((y+h * 64) + (x+w)) as usize] != 0 {
                             c8.v[15] = 1;
                         }
