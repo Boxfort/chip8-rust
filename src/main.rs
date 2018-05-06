@@ -148,23 +148,37 @@ fn chip8_execute(c8: &mut Chip8) {
     c8.opcode = (c8.memory[c8.pc as usize] as u16) << 8 | c8.memory[(c8.pc + 1) as usize] as u16;
 
     // Decode opcode by removing the first nibble to get operation type.
-    match (c8.opcode & 0xF000) {
+    match c8.opcode & 0xF000 {
         // Execute opcode.
         0x0000 =>
-            match (c8.opcode & 0x000F) {
-                0x0000 => {},
+            match c8.opcode & 0x000F {
+                // Clear the screen.
+                0x0000 => { for elem in c8.gfx.iter_mut() { *elem = 0; } },
+                // Return from subroutine.
                 0x000E => {},
                 _      => {}
             },
-        0x1000 => {},
-        0x2000 => {},
-        0x3000 => {},
-        0x4000 => {},
-        0x5000 => {},
-        0x6000 => {},
-        0x7000 => {},
+        // Jump to address.
+        0x1000 => {  },
+        // Call subroutine.
+        0x2000 => {  },
+        // If Vx == NN skip next instruction.
+        0x3000 => {
+            if c8.v[((c8.opcode & 0x0F00) >> 8) as usize] == (c8.opcode & 0x00FF) as u8 {
+                c8.pc += 2;
+            }},
+        0x4000 => {
+            if c8.v[((c8.opcode & 0x0F00) >> 8) as usize] != (c8.opcode & 0x00FF) as u8 {
+                c8.pc += 2;
+            }},
+        0x5000 => {
+            if c8.v[((c8.opcode & 0x0F00) >> 8) as usize] != c8.v[((c8.opcode & 0x00F0) >> 4) as usize] {
+                c8.pc += 2;
+            }},
+        0x6000 => { c8.v[((c8.opcode & 0x0F00) >> 8) as usize] = (c8.opcode & 0x00FF) as u8},
+        0x7000 => {  },
         0x8000 =>
-            match (c8.opcode & 0x000F) {
+            match c8.opcode & 0x000F {
                 0x0000 => {},
                 0x0001 => {},
                 0x0002 => {},
@@ -182,13 +196,13 @@ fn chip8_execute(c8: &mut Chip8) {
         0xC000 => {},
         0xD000 => {},
         0xE000 =>
-            match (c8.opcode & 0x000F) {
+            match c8.opcode & 0x000F {
                 0x000E => {},
                 0x0001 => {},
                 _      => {}
             },
         0xF000 =>
-            match (c8.opcode & 0x00FF) {
+            match c8.opcode & 0x00FF {
                 0x0007 => {},
                 0x000A => {},
                 0x0015 => {},
@@ -225,7 +239,7 @@ fn chip8_draw(c8: &Chip8, canvas: &mut sdl2::render::Canvas<sdl2::video::Window>
         if c8.gfx[i] != 0 {
             let x : i32 = (i as i32 % 64) * (W_BOUNDS.0 as i32 / 64);
             let y : i32 = (i as i32 / 64) * (W_BOUNDS.1 as i32 / 32);
-            canvas.fill_rect(sdl2::rect::Rect::new(x,y,W_BOUNDS.0/64,W_BOUNDS.1/32));
+            canvas.fill_rect(sdl2::rect::Rect::new(x,y,W_BOUNDS.0/64,W_BOUNDS.1/32)).expect("Could not draw to screen.");
         }
     }
     canvas.present();
