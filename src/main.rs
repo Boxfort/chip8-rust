@@ -42,6 +42,10 @@ fn main() {
 
     // Initialise chip8
     let mut c8 = chip8_initialise();
+
+    // Load fontset
+    chip8_load_fontset(&mut c8);
+
     // Load game into memory
 
     'a : loop {
@@ -107,6 +111,14 @@ fn chip8_initialise() -> Chip8 {
         stack:       [0_u16; 16],
         sp:          0,
         key:         [0_u16; 16]
+    }
+}
+
+/// Loads the contents of CHIP8_FONTSET into the first
+/// 80 bytes of chip8 memory.
+fn chip8_load_fontset(c8: &mut Chip8) {
+    for i in 0..CHI8_FONTSET.len() {
+        c8.memory[i] = CHI8_FONTSET[i];
     }
 }
 
