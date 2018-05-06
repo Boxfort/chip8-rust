@@ -8,7 +8,7 @@ use sdl2::keyboard::Keycode;
 
 const W_BOUNDS: (u32, u32)   =                (640,320); // Window resolution.
 const TITLE:    &'static str =                  "Chip8"; // Title to be displayed on the window.
-const FILENAME: &'static str = "roms/clock.ch8";
+const FILENAME: &'static str = "roms/pong.ch8";
 
 const CHI8_FONTSET: [u8; 80] = [
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -207,7 +207,11 @@ fn chip8_execute(c8: &mut Chip8) {
             c8.pc = c8.opcode & 0x0FFF;
         },
         // Call subroutine.
-        0x2000 => {  },
+        0x2000 => {
+            c8.stack[(c8.sp & 0xF) as usize] = c8.pc;
+            c8.pc = c8.opcode & 0x0FFF;
+            c8.sp += 1;
+        },
         // If Vx == NN skip next instruction.
         0x3000 => {
             if c8.v[((c8.opcode & 0x0F00) >> 8) as usize] == (c8.opcode & 0x00FF) as u8 {
@@ -230,9 +234,15 @@ fn chip8_execute(c8: &mut Chip8) {
                 c8.pc += 2;
             }},
         // Set Vx == NN
-        0x6000 => { c8.v[((c8.opcode & 0x0F00) >> 8) as usize] = (c8.opcode & 0x00FF) as u8;},
+        0x6000 => {
+            c8.v[((c8.opcode & 0x0F00) >> 8) as usize] = (c8.opcode & 0x00FF) as u8;
+            c8.pc += 2;
+        },
         // Add NN to Vx (Carry flag is not changed)
-        0x7000 => { c8.v[((c8.opcode & 0x0F00) >> 8) as usize] += (c8.opcode & 0x00FF) as u8;},
+        0x7000 => {
+            c8.v[((c8.opcode & 0x0F00) >> 8) as usize] += (c8.opcode & 0x00FF) as u8;
+            c8.pc += 2;
+        },
         0x8000 =>
             match c8.opcode & 0x000F {
                 // Set Vx to Vy
@@ -367,15 +377,16 @@ fn chip8_execute(c8: &mut Chip8) {
         },
         // Draw a sprite at Vx, Vy, with a width of 8 and height N
         0xD000 => {
-            let x = c8.opcode & 0x0F00;
-            let y = c8.opcode & 0x00F0;
+            let x = (c8.opcode & 0x0F00) >> 8;
+            let y = (c8.opcode & 0x00F0) >> 4;
 
             c8.v[15] = 1;
 
             // For height N
-            for h in 0..c8.opcode & 0x000F {
+            for h in 0..(c8.opcode & 0x000F) {
                 for w in 0..8 {
                     // Each byte at memory[i] represents a row of 8 pixels
+                    println!{"h: {}, w: {}, x: {}, y: {}", &h, &w, &x, &y};
                     if c8.memory[(c8.i + h) as usize] & (0x80 >> w) != 0 {
                         if c8.gfx[((y+h * 64) + (x+w)) as usize] != 0 {
                             c8.v[15] = 1;
@@ -465,7 +476,7 @@ fn chip8_execute(c8: &mut Chip8) {
                 // Stores V0 to Vx in memory starting at address i.
                 0x0055 => {
                     for i in 0..(((c8.opcode & 0x0F00) >> 8) + 1)  {
-                        c8.memory[c8.i as usize] = c8.v[i as usize];
+                        c8.memory[(c8.i + i) as usize] = c8.v[i as usize];
                         c8.i += 1;
                     }
 
@@ -474,8 +485,7 @@ fn chip8_execute(c8: &mut Chip8) {
                 // Fills V0 to Vx with values from memory starting at address i.
                 0x0065 => {
                     for i in 0..(((c8.opcode & 0x0F00) >> 8) + 1)  {
-                        c8.v[c8.i as usize] = c8.memory[i as usize];
-                        c8.i += 1;
+                        c8.v[i as usize] = c8.memory[(c8.i + i) as usize];
                     }
 
                     c8.pc += 2;
