@@ -285,7 +285,6 @@ fn chip8_execute(c8: &mut Chip8) {
                         c8.v[15] = 1;
                     }
 
-
                     c8.pc += 2;
                 },
                 // Set Vf to most significant bit of Vy and Vx to Vy << 1
@@ -351,6 +350,7 @@ fn chip8_execute(c8: &mut Chip8) {
             }
 
             c8.draw_flag = true;
+
             c8.pc += 2;
         },
         0xE000 =>
@@ -361,15 +361,63 @@ fn chip8_execute(c8: &mut Chip8) {
             },
         0xF000 =>
             match c8.opcode & 0x00FF {
-                0x0007 => {},
+                // Set VX to the value of the delay timer.
+                0x0007 => {
+                    c8.v[(c8.opcode & 0x0F00) as usize] = c8.delay_timer;
+
+                    c8.pc += 2;
+                },
                 0x000A => {},
-                0x0015 => {},
-                0x0018 => {},
-                0x001E => {},
-                0x0029 => {},
-                0x0033 => {},
-                0x0055 => {},
-                0x0065 => {},
+                // Set the delay timer to Vx.
+                0x0015 => {
+                    c8.delay_timer = ((c8.opcode & 0x0F00) >> 8) as u8;
+
+                    c8.pc += 2;
+                },
+                // Set the sound timer to Vx.
+                0x0018 => {
+                    c8.sound_timer = ((c8.opcode & 0x0F00) >> 8) as u8;
+
+                    c8.pc += 2;
+                },
+                // Adds Vx to I.
+                0x001E => { 
+                    c8.i += c8.v[(c8.opcode & 0x0F00) as usize] as u16;
+
+                    c8.pc += 2;
+                },
+                // Set I to the sprite for the character in Vx.
+                0x0029 => {
+                    c8.i = (((c8.opcode & 0x0F00) >> 8)*5) as u16;
+
+                    c8.pc += 2;
+                },
+                // Stores the binary-coded decimal representation of Vx, in i to i+2.
+                0x0033 => {
+                    c8.memory[c8.i as usize]     = c8.v[((c8.opcode & 0x0F00) >> 8) as usize] / 100;
+                    c8.memory[(c8.i+1) as usize] = (c8.v[((c8.opcode & 0x0F00) >> 8) as usize] / 10) % 10;
+                    c8.memory[(c8.i+2) as usize] = c8.v[((c8.opcode & 0x0F00) >> 8) as usize] % 10;
+
+                    c8.pc += 2;
+                },
+                // Stores V0 to Vx in memory starting at address i.
+                0x0055 => {
+                    for i in 0..(((c8.opcode & 0x0F00) >> 8) + 1)  {
+                        c8.memory[c8.i as usize] = c8.v[i as usize];
+                        c8.i += 1;
+                    }
+
+                    c8.pc += 2;
+                },
+                // Fills V0 to Vx with values from memory starting at address i.
+                0x0065 => {
+                    for i in 0..(((c8.opcode & 0x0F00) >> 8) + 1)  {
+                        c8.v[c8.i as usize] = c8.memory[i as usize];
+                        c8.i += 1;
+                    }
+
+                    c8.pc += 2;
+                },
                 _      => {}
             }
         _      => { panic!("Undefined instruction: 0x{:X}", c8.opcode) }
