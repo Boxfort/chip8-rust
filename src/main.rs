@@ -85,7 +85,7 @@ fn main() {
             chip8_draw(&mut c8, &mut canvas);
         }
 
-        /*
+        
         'b : loop {
             for event in events.poll_iter() {
                 match event {
@@ -99,7 +99,7 @@ fn main() {
                 }
             }
         }
-        */
+        
     }
 }
 
@@ -378,7 +378,12 @@ fn chip8_execute(c8: &mut Chip8) {
                         if c8.gfx[((c8.v[y] as usize + h * 64) + (c8.v[x]+w) as usize) as usize] != 0 {
                             c8.v[15] = 1;
                         }
-                        c8.gfx[((c8.v[y] as usize +h * 64) + (c8.v[x]+w) as usize) as usize] ^= 0xFF;
+                        let dy = ((c8.v[y] as usize + h) * 64);
+                        let dx = ((c8.v[x]+w) as usize);
+                        
+                        println!{"({},{})", (dy/64), dx};
+
+                        c8.gfx[(dy + dx) as usize] ^= 0xFF;
                     }
                 }
             }
