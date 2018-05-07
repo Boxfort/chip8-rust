@@ -214,12 +214,12 @@ fn chip8_execute(c8: &mut Chip8) {
             },
         // Jump to address NNN.
         0x1000 => {
-            c8.pc = c8.opcode & 0x0FFF;
+            c8.pc = nnn as u16;
         },
         // Call subroutine.
         0x2000 => {
             c8.stack[c8.sp as usize] = c8.pc;
-            c8.pc = c8.opcode & 0x0FFF;
+            c8.pc = nnn as u16;
             c8.sp += 1;
         },
         // If Vx == NN skip next instruction.
@@ -340,11 +340,11 @@ fn chip8_execute(c8: &mut Chip8) {
         }},
         // Sets I to the address NNN.
         0xA000 => {
-            c8.i = c8.opcode & 0x0FFF;
+            c8.i = nnn as u16;
         },
         // Jumps to the address NNN plus V0.
         0xB000 => {
-            c8.pc = (c8.opcode & 0x0FFF) + c8.v[0] as u16;
+            c8.pc = nnn as u16 + c8.v[0] as u16;
         },
         // Sets VX to the result a random u8 AND NN
         0xC000 => {
@@ -353,20 +353,17 @@ fn chip8_execute(c8: &mut Chip8) {
         },
         // Draw a sprite at Vx, Vy, with a width of 8 and height N
         0xD000 => {
-            let x = (c8.opcode & 0x0F00) >> 8;
-            let y = (c8.opcode & 0x00F0) >> 4;
-
-            c8.v[15] = 1;
+            c8.v[15] = 0;
 
             // For height N
             for h in 0..n {
                 for w in 0..8 {
                     // Each byte at memory[i] represents a row of 8 pixels
                     if c8.memory[(c8.i + h as u16) as usize] & (0x80 >> w) != 0 {
-                        if c8.gfx[((y+h as u16 * 64) + (x+w)) as usize] != 0 {
+                        if c8.gfx[((y+h * 64) + (x+w)) as usize] != 0 {
                             c8.v[15] = 1;
                         }
-                        c8.gfx[((y+h as u16 * 64) + (x+w)) as usize] ^= 0xFF;
+                        c8.gfx[((y+h * 64) + (x+w)) as usize] ^= 0xFF;
                     }
 
                 }
