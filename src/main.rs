@@ -8,7 +8,7 @@ use sdl2::keyboard::Keycode;
 
 const W_BOUNDS: (u32, u32)   =                (640,320); // Window resolution.
 const TITLE:    &'static str =                  "Chip8"; // Title to be displayed on the window.
-const FILENAME: &'static str = "roms/pong.ch8";
+const FILENAME: &'static str = "roms/PONG";
 
 const CHI8_FONTSET: [u8; 80] = [
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -85,6 +85,21 @@ fn main() {
             chip8_draw(&mut c8, &mut canvas);
         }
 
+        /*
+        'b : loop {
+            for event in events.poll_iter() {
+                match event {
+                    sdl2::event::Event::Quit{..} => { std::process::exit(1) },
+                    sdl2::event::Event::KeyDown {keycode: Some(keycode), ..} => {
+                        if keycode == sdl2::keyboard::Keycode::Space {
+                            break 'b;
+                        }
+                    },
+                    _ => { }
+                }
+            }
+        }
+        */
     }
 }
 
@@ -152,7 +167,7 @@ fn chip8_load_game(c8: &mut Chip8, filename: &str) -> Result<(), std::io::Error>
 
     // Load buffer into chip8 memory.
     for i in 0..3584 {
-        c8.memory[i + 512] = buffer[i];
+        c8.memory[i + 0x200] = buffer[i];
     }
 
     Ok(())
@@ -194,6 +209,15 @@ fn chip8_execute(c8: &mut Chip8) {
 
     c8.pc += 2;
 
+    println!{ "pc: {:X}, sp: {:X}, i: {:X}", c8.pc, c8.sp, c8.i};
+    println!{ "v: {:?}", c8.v};
+    //c8.gfx.iter().for_each(|a| print!{"{:X}", a});
+    for i in 0..c8.gfx.len() {
+        print!{"{}", c8.gfx[i]};
+        if i % 64 == 0 {
+            println!{""};
+        }
+    }
     println!{"Executing opcode: 0x{:X}", c8.opcode};
 
     let x   : usize = ((c8.opcode & 0x0F00) >> 8) as usize;
@@ -250,9 +274,13 @@ fn chip8_execute(c8: &mut Chip8) {
         },
         // Add NN to Vx (Carry flag is not changed)
         0x7000 => {
-            println!{"c8.v & 0x0F00: {:X}, c8.opcode & 0x00FF: {:X}",
-                    (c8.v[x]), (c8.opcode & 0x00FF)};
-            c8.v[x] += nn as u8;
+            println!{"c8.v[x]: {:X}, nn: {:X}",
+                    (c8.v[x]), (nn)};
+
+            let total: u16 = c8.v[x] as u16 + nn as u16;
+            c8.v[x] = total as u8;
+
+            //c8.v[x] += nn as u8;
         },
         0x8000 =>
             match c8.opcode & 0x000F {
@@ -288,7 +316,7 @@ fn chip8_execute(c8: &mut Chip8) {
                 0x0005 => {
                     let total = c8.v[x] as i8 - c8.v[y] as i8;
 
-                    c8.v[x] = total as u8;
+                    c8.v[x] = c8.v[x].wrapping_sub(c8.v[y]);
 
                     if total < 0{
                         c8.v[15] = 1;
@@ -305,7 +333,7 @@ fn chip8_execute(c8: &mut Chip8) {
                 0x0007 => {
                     let total = c8.v[y] as i8 - c8.v[x] as i8;
 
-                    c8.v[x] = total as u8;
+                    c8.v[x] = c8.v[y].wrapping_sub(c8.v[x]);
 
                     if total < 0 {
                         c8.v[15] = 1;
@@ -347,10 +375,10 @@ fn chip8_execute(c8: &mut Chip8) {
                 for w in 0..8 {
                     // Each byte at memory[i] represents a row of 8 pixels
                     if c8.memory[(c8.i + h as u16) as usize] & (0x80 >> w) != 0 {
-                        if c8.gfx[((y+h * 64) + (x+w)) as usize] != 0 {
+                        if c8.gfx[((c8.v[y] as usize + h * 64) + (c8.v[x]+w) as usize) as usize] != 0 {
                             c8.v[15] = 1;
                         }
-                        c8.gfx[((y+h * 64) + (x+w)) as usize] ^= 0xFF;
+                        c8.gfx[((c8.v[y] as usize +h * 64) + (c8.v[x]+w) as usize) as usize] ^= 0xFF;
                     }
                 }
             }
@@ -375,7 +403,7 @@ fn chip8_execute(c8: &mut Chip8) {
             match c8.opcode & 0x00FF {
                 // Set VX to the value of the delay timer.
                 0x0007 => {
-                    c8.v[(c8.opcode & 0x0F00) as usize] = c8.delay_timer;
+                    c8.v[x] = c8.delay_timer;
                 },
                 // A key press is awaited, and then stored in Vx.
                 0x000A => {
@@ -400,7 +428,7 @@ fn chip8_execute(c8: &mut Chip8) {
                 },
                 // Adds Vx to I.
                 0x001E => { 
-                    c8.i += c8.v[(c8.opcode & 0x0F00) as usize] as u16;
+                    c8.i += c8.v[x] as u16;
                 },
                 // Set I to the sprite for the character in Vx.
                 0x0029 => {
@@ -563,6 +591,7 @@ fn test_opcode_0x5000() {
     assert_eq!(c8.pc, 518, "Program counter incremented.");
 }
 
+#[test]
 fn test_opcode_0x7000(){
     let mut c8 = chip8_initialise();
     c8.opcode = 0x71FF;
