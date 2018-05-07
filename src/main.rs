@@ -79,6 +79,7 @@ fn main() {
     'a : loop {
 
         chip8_handle_input(&mut c8, &mut events);
+        chip8_fetch(&mut c8);
         chip8_execute(&mut c8);
         if c8.draw_flag {
             chip8_draw(&mut c8, &mut canvas);
@@ -180,11 +181,16 @@ fn chip8_handle_input(c8: &mut Chip8, events: &mut sdl2::EventPump) {
     }
 }
 
-fn chip8_execute(c8: &mut Chip8) {
-    // Fetch the 16 bit opcode from two sequential 8 bit pc locations, then
-    // combine them by shifting the first byte back by 8 bits and ORing
-    // by the second byte to combine both.
+/// Fetch the current opcode from c8.memory and set c8.opcode.
+///
+/// Fetches the 16 bit opcode from two sequential 8 bit locations
+/// in memory pointed to by c8.pc, then combines them by shifting
+/// the first byte back by 8 bits and ORing by the second byte.
+fn chip8_fetch(c8: &mut Chip8) {
     c8.opcode = (c8.memory[c8.pc as usize] as u16) << 8 | c8.memory[(c8.pc + 1) as usize] as u16;
+}
+
+fn chip8_execute(c8: &mut Chip8) {
 
     c8.pc += 2;
 
@@ -255,27 +261,19 @@ fn chip8_execute(c8: &mut Chip8) {
                 },
                 // Set Vx to Vx OR Vy
                 0x0001 => {
-                    c8.v[x] =
-                    c8.v[x] |
-                    c8.v[y];
+                    c8.v[x] = c8.v[x] | c8.v[y];
                 },
                 // Set Vx to Vx AND Vy
                 0x0002 => {
-                    c8.v[x] =
-                    c8.v[x] &
-                    c8.v[y];
+                    c8.v[x] = c8.v[x] & c8.v[y];
                 },
                 // Set Vx to Vx XOR Vy
                 0x0003 => {
-                    c8.v[x] =
-                    c8.v[x] ^
-                    c8.v[y];
+                    c8.v[x] = c8.v[x] ^ c8.v[y];
                 },
                 // Set Vx to Vx + Vy (Vf is set to 1 on carry)
                 0x0004 => {
-                    let total: u16 =
-                    c8.v[x] as u16 +
-                    c8.v[y] as u16;
+                    let total: u16 = c8.v[x] as u16 + c8.v[y] as u16;
 
                     c8.v[x] = total as u8;
 
@@ -299,37 +297,27 @@ fn chip8_execute(c8: &mut Chip8) {
                         c8.v[15] = 0;
                     }
                 },
-                // Set Vf to least significant bit of Vy and Vx to Vy >> 1
+                // Set Vf to least significant bit of Vx and shift Vx right
                 0x0006 => {
-                    c8.v[15] = c8.v[y] & 0b00000001;
-                    c8.v[y] =
-                    c8.v[y] >> 1;
-
-                    c8.v[x] =
-                    c8.v[y];
+                    c8.v[15] = c8.v[x] & 0x1;
+                    c8.v[x] >>= 1;
                 },
                 // Sets Vx to Vy - Vx. Vf is set to 0 on borrow.
                 0x0007 => {
-                    let total: u16 =
-                    c8.v[((c8.opcode & 0x00F0) >> 8) as usize] as u16 -
-                    c8.v[x] as u16;
+                    let total = c8.v[y] as i8 - c8.v[x] as i8;
 
                     c8.v[x] = total as u8;
 
-                    if total <= 0{
+                    if total < 0 {
                         c8.v[15] = 0;
                     } else {
                         c8.v[15] = 1;
                     }
                 },
-                // Set Vf to most significant bit of Vy and Vx to Vy << 1
+                // Set Vf to most significant bit of Vx and shift Vx left
                 0x000E => {
-                    c8.v[15] = c8.v[y] & 0b10000000;
-                    c8.v[y] =
-                    c8.v[y] << 1;
-
-                    c8.v[x] =
-                    c8.v[y];
+                    c8.v[15] = c8.v[x] & 0x80;
+                    c8.v[x] <<= 1;
                 },
                 _      => { panic!("Undefined instruction: 0x{:X}", c8.opcode) }
             },
