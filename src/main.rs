@@ -231,6 +231,7 @@ fn chip8_execute(c8: &mut Chip8) {
         // If Vx == NN skip next instruction.
         0x3000 => {
             if c8.v[x] == nn as u8 {
+                println!{"Skipped!"};
                 c8.pc += 2;
             }},
         // If Vx != NN skip next instruction.
@@ -277,7 +278,7 @@ fn chip8_execute(c8: &mut Chip8) {
 
                     c8.v[x] = total as u8;
 
-                    if total > 255 {
+                    if total > 0xFF {
                         c8.v[15] = 1;
                     } else {
                         c8.v[15] = 0;
@@ -285,13 +286,11 @@ fn chip8_execute(c8: &mut Chip8) {
                 },
                 // Set Vx to Vx - Vy (Vf is set to 1 on borrow)
                 0x0005 => {
-                    let total: u16 =
-                    c8.v[x] as u16 -
-                    c8.v[y] as u16;
+                    let total = c8.v[x] as i8 - c8.v[y] as i8;
 
                     c8.v[x] = total as u8;
 
-                    if total <= 0{
+                    if total < 0{
                         c8.v[15] = 1;
                     } else {
                         c8.v[15] = 0;
@@ -309,9 +308,9 @@ fn chip8_execute(c8: &mut Chip8) {
                     c8.v[x] = total as u8;
 
                     if total < 0 {
-                        c8.v[15] = 0;
-                    } else {
                         c8.v[15] = 1;
+                    } else {
+                        c8.v[15] = 0;
                     }
                 },
                 // Set Vf to most significant bit of Vx and shift Vx left
@@ -353,7 +352,6 @@ fn chip8_execute(c8: &mut Chip8) {
                         }
                         c8.gfx[((y+h * 64) + (x+w)) as usize] ^= 0xFF;
                     }
-
                 }
             }
 
@@ -394,11 +392,11 @@ fn chip8_execute(c8: &mut Chip8) {
                 },
                 // Set the delay timer to Vx.
                 0x0015 => {
-                    c8.delay_timer = ((c8.opcode & 0x0F00) >> 8) as u8;
+                    c8.delay_timer = c8.v[x];
                 },
                 // Set the sound timer to Vx.
                 0x0018 => {
-                    c8.sound_timer = ((c8.opcode & 0x0F00) >> 8) as u8;
+                    c8.sound_timer = c8.v[x];
                 },
                 // Adds Vx to I.
                 0x001E => { 
@@ -406,26 +404,31 @@ fn chip8_execute(c8: &mut Chip8) {
                 },
                 // Set I to the sprite for the character in Vx.
                 0x0029 => {
-                    c8.i = (((c8.opcode & 0x0F00) >> 8)*5) as u16;
+                    c8.i = (c8.v[x] * 5) as u16;
                 },
                 // Stores the binary-coded decimal representation of Vx, in i to i+2.
                 0x0033 => {
                     c8.memory[c8.i as usize]     = c8.v[x] / 100;
-                    c8.memory[(c8.i+1) as usize] = (c8.v[x] / 10) % 10;
-                    c8.memory[(c8.i+2) as usize] = c8.v[x] % 10;
+                    c8.memory[(c8.i+1) as usize] = (c8.v[x] / 10)  % 10;
+                    c8.memory[(c8.i+2) as usize] = (c8.v[x] % 100) % 10;
                 },
                 // Stores V0 to Vx in memory starting at address i.
                 0x0055 => {
-                    for i in 0..(((c8.opcode & 0x0F00) >> 8) + 1)  {
-                        c8.memory[(c8.i + i) as usize] = c8.v[i as usize];
-                        c8.i += 1;
-                    }
+                    c8.memory[(c8.i as usize)..(c8.i + x as u16 + 1) as usize]
+                        .copy_from_slice(&c8.v[0..(x as usize + 1)]);
+                    //for i in 0..(((c8.opcode & 0x0F00) >> 8) + 1)  {
+                    //    c8.memory[(c8.i + i) as usize] = c8.v[i as usize];
+                    //   c8.i += 1;
+                    //}
                 },
                 // Fills V0 to Vx with values from memory starting at address i.
                 0x0065 => {
-                    for i in 0..(((c8.opcode & 0x0F00) >> 8) + 1)  {
-                        c8.v[i as usize] = c8.memory[(c8.i + i) as usize];
-                    }
+                    c8.v[0..(x as usize + 1)]
+                        .copy_from_slice(&c8.memory[(c8.i as usize)..(c8.i + x as u16 + 1) as usize]);
+
+                    //for i in 0..(((c8.opcode & 0x0F00) >> 8) + 1)  {
+                    //    c8.v[i as usize] = c8.memory[(c8.i + i) as usize];
+                    //}
                 },
                 _      => { panic!("Undefined instruction: 0x{:X}", c8.opcode) }
             }
@@ -458,4 +461,165 @@ fn chip8_draw(c8: &Chip8, canvas: &mut sdl2::render::Canvas<sdl2::video::Window>
         }
     }
     canvas.present();
+}
+
+#[test]
+fn test_opcode_0x0000() {
+    let mut c8 = chip8_initialise();
+    c8.opcode = 0x0000;
+    c8.gfx = [255; 2048];
+
+    chip8_execute(&mut c8);
+
+    assert!(c8.gfx.iter().zip([0; 2048].iter()).all(|(a,b)| a == b), "c8.gfx not cleared properly.");
+    assert_eq!(c8.pc, 514);
+}
+
+#[test]
+fn test_opcode_0x000e() {
+    let mut c8 = chip8_initialise();
+    c8.opcode = 0x000E;
+    c8.sp = 1;
+    c8.stack[0] = 524;
+
+    chip8_execute(&mut c8);
+
+    assert_eq!(c8.pc, 524, "Program counter set to new address.");
+    assert_eq!(c8.sp, 0, "Stack pointer decremented.");
+}
+
+#[test]
+fn test_opcode_0x1000() {
+    let mut c8 = chip8_initialise();
+    c8.opcode = 0x1A2A;
+
+    chip8_execute(&mut c8);
+
+    assert_eq!(c8.pc, 0x0A2A, "Program counter updated.");
+}
+
+#[test]
+fn test_opcode_0x2000() {
+    let mut c8 = chip8_initialise();
+    c8.opcode = 0x2ABC;
+    c8.pc = 0x23;
+
+    chip8_execute(&mut c8);
+
+    assert_eq!(c8.pc, 0x0ABC, "Program counter updated to new address.");
+    assert_eq!(c8.sp, 1, "Stack poiter incremented.");
+    assert_eq!(c8.stack[0], 0x23 + 2, "Stack holds previous address.");
+}
+
+#[test]
+fn test_opcode_0x3000() {
+    let mut c8 = chip8_initialise();
+    c8.opcode = 0x31AB;
+    c8.v[1] = 0xAB;
+
+    chip8_execute(&mut c8);
+
+    assert_eq!(c8.pc, 516, "Instruction skipped.");
+
+    c8.opcode = 0x31AA;
+
+    chip8_execute(&mut c8);
+
+    assert_eq!(c8.pc, 518, "Program counter incremented.");
+}
+
+#[test]
+fn test_opcode_0x4000() {
+    let mut c8 = chip8_initialise();
+    c8.opcode = 0x41AA;
+    c8.v[1] = 0xAB;
+
+    chip8_execute(&mut c8);
+
+    assert_eq!(c8.pc, 516, "Instruction skipped.");
+
+    c8.opcode = 0x41AB;
+
+    chip8_execute(&mut c8);
+
+    assert_eq!(c8.pc, 518, "Program counter incremented.");
+}
+
+#[test]
+fn test_opcode_0x5000() {
+    let mut c8 = chip8_initialise();
+    c8.opcode = 0x5AB0;
+    c8.v[0xA] = 1;
+    c8.v[0xB] = 1;
+
+    chip8_execute(&mut c8);
+
+    assert_eq!(c8.pc, 516, "Instruction skipped.");
+
+    c8.v[0xB] = 0;
+
+    chip8_execute(&mut c8);
+
+    assert_eq!(c8.pc, 518, "Program counter incremented.");
+}
+
+fn test_opcode_0x7000(){
+    let mut c8 = chip8_initialise();
+    c8.opcode = 0x71FF;
+    c8.v[1] = 0xFF;
+
+    chip8_execute(&mut c8);
+    assert_eq!{c8.v[1], 0xFF};
+
+    c8.opcode = 0x71FF;
+    c8.v[1] = 0;
+
+    chip8_execute(&mut c8);
+    assert_eq!{c8.v[1], 0xFF};
+
+    c8.opcode = 0x7100;
+    c8.v[1] = 0;
+
+    chip8_execute(&mut c8);
+    assert_eq!{c8.v[1], 0};
+
+    c8.opcode = 0x71AB;
+    c8.v[1] = 0x11;
+
+    chip8_execute(&mut c8);
+    assert_eq!{c8.v[1], 0xBC};
+}
+
+fn test_opcode_0x8000(){
+    let mut c8 = chip8_initialise();
+    c8.opcode = 0x0000;
+
+    chip8_execute(&mut c8);
+    //assert_eq!{};
+}
+
+fn test_opcode_0x9000(){
+    let mut c8 = chip8_initialise();
+    c8.opcode = 0x0000;
+
+    chip8_execute(&mut c8);
+    //assert_eq!{};
+}
+
+#[test]
+fn test_opcode_0x8006() {
+    let mut c8 = chip8_initialise();
+    c8.opcode = 0x8106;
+    c8.v[1] = 0b00110000;
+    c8.v[15] = 1;
+
+    chip8_execute(&mut c8);
+    assert_eq!(c8.v[1], 0b00011000, "Vx shifted 1 bit right.");
+    assert_eq!(c8.v[15], 0, "Carry flag set to 0.");
+
+    c8.v[1] = 0b00110001;
+    c8.v[15] = 0;
+    chip8_execute(&mut c8);
+    assert_eq!(c8.v[1], 0b00011000, "Vx shifted 1 bit right.");
+    assert_eq!(c8.v[15], 1, "Carry flag set to 1.");
 }
