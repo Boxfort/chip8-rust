@@ -186,6 +186,8 @@ fn chip8_execute(c8: &mut Chip8) {
     // by the second byte to combine both.
     c8.opcode = (c8.memory[c8.pc as usize] as u16) << 8 | c8.memory[(c8.pc + 1) as usize] as u16;
 
+    c8.pc += 2;
+
     println!{"Executing opcode: 0x{:X}", c8.opcode};
 
     // Decode opcode by removing the first nibble to get operation type.
@@ -194,7 +196,9 @@ fn chip8_execute(c8: &mut Chip8) {
         0x0000 =>
             match c8.opcode & 0x000F {
                 // Clear the screen.
-                0x0000 => { for elem in c8.gfx.iter_mut() { *elem = 0; } },
+                0x0000 => {
+                    for elem in c8.gfx.iter_mut() { *elem = 0; };
+                },
                 // Return from subroutine.
                 0x000E => {
                     c8.sp -= 1;
@@ -208,72 +212,58 @@ fn chip8_execute(c8: &mut Chip8) {
         },
         // Call subroutine.
         0x2000 => {
-            c8.stack[(c8.sp & 0xF) as usize] = c8.pc;
+            c8.stack[c8.sp as usize] = c8.pc;
             c8.pc = c8.opcode & 0x0FFF;
             c8.sp += 1;
         },
         // If Vx == NN skip next instruction.
         0x3000 => {
             if c8.v[((c8.opcode & 0x0F00) >> 8) as usize] == (c8.opcode & 0x00FF) as u8 {
-                c8.pc += 4;
-            } else {
                 c8.pc += 2;
             }},
         // If Vx != NN skip next instruction.
         0x4000 => {
             if c8.v[((c8.opcode & 0x0F00) >> 8) as usize] != (c8.opcode & 0x00FF) as u8 {
-                c8.pc += 4;
-            } else {
                 c8.pc += 2;
             }},
         // If Vx == Vy skip next instruction.
         0x5000 => {
             if c8.v[((c8.opcode & 0x0F00) >> 8) as usize] == c8.v[((c8.opcode & 0x00F0) >> 4) as usize] {
-                c8.pc += 4;
-            } else {
                 c8.pc += 2;
             }},
         // Set Vx == NN
         0x6000 => {
             c8.v[((c8.opcode & 0x0F00) >> 8) as usize] = (c8.opcode & 0x00FF) as u8;
-            c8.pc += 2;
         },
         // Add NN to Vx (Carry flag is not changed)
         0x7000 => {
+            println!{"c8.v & 0x0F00: {:X}, c8.opcode & 0x00FF: {:X}",
+                    (c8.v[((c8.opcode & 0x0F00) >> 8) as usize]), (c8.opcode & 0x00FF)};
             c8.v[((c8.opcode & 0x0F00) >> 8) as usize] += (c8.opcode & 0x00FF) as u8;
-            c8.pc += 2;
         },
         0x8000 =>
             match c8.opcode & 0x000F {
                 // Set Vx to Vy
                 0x0000 => {
                     c8.v[((c8.opcode & 0x0F00) >> 8) as usize] = c8.v[((c8.opcode & 0x00F0) >> 4) as usize];
-
-                    c8.pc += 2;
                 },
                 // Set Vx to Vx OR Vy
                 0x0001 => {
                     c8.v[((c8.opcode & 0x0F00) >> 8) as usize] =
                     c8.v[((c8.opcode & 0x0F00) >> 8) as usize] |
                     c8.v[((c8.opcode & 0x00F0) >> 4) as usize];
-
-                    c8.pc += 2;
                 },
                 // Set Vx to Vx AND Vy
                 0x0002 => {
                     c8.v[((c8.opcode & 0x0F00) >> 8) as usize] =
                     c8.v[((c8.opcode & 0x0F00) >> 8) as usize] &
                     c8.v[((c8.opcode & 0x00F0) >> 4) as usize];
-
-                    c8.pc += 2;
                 },
                 // Set Vx to Vx XOR Vy
                 0x0003 => {
                     c8.v[((c8.opcode & 0x0F00) >> 8) as usize] =
                     c8.v[((c8.opcode & 0x0F00) >> 8) as usize] ^
                     c8.v[((c8.opcode & 0x00F0) >> 4) as usize];
-
-                    c8.pc += 2;
                 },
                 // Set Vx to Vx + Vy (Vf is set to 1 on carry)
                 0x0004 => {
@@ -288,8 +278,6 @@ fn chip8_execute(c8: &mut Chip8) {
                     } else {
                         c8.v[15] = 0;
                     }
-
-                    c8.pc += 2;
                 },
                 // Set Vx to Vx - Vy (Vf is set to 1 on borrow)
                 0x0005 => {
@@ -304,8 +292,6 @@ fn chip8_execute(c8: &mut Chip8) {
                     } else {
                         c8.v[15] = 0;
                     }
-
-                    c8.pc += 2;
                 },
                 // Set Vf to least significant bit of Vy and Vx to Vy >> 1
                 0x0006 => {
@@ -315,8 +301,6 @@ fn chip8_execute(c8: &mut Chip8) {
 
                     c8.v[((c8.opcode & 0x0F00) >> 8) as usize] =
                     c8.v[((c8.opcode & 0x00F0) >> 4) as usize];
-
-                    c8.pc += 2;
                 },
                 // Sets Vx to Vy - Vx. Vf is set to 0 on borrow.
                 0x0007 => {
@@ -331,8 +315,6 @@ fn chip8_execute(c8: &mut Chip8) {
                     } else {
                         c8.v[15] = 1;
                     }
-
-                    c8.pc += 2;
                 },
                 // Set Vf to most significant bit of Vy and Vx to Vy << 1
                 0x000E => {
@@ -342,38 +324,27 @@ fn chip8_execute(c8: &mut Chip8) {
 
                     c8.v[((c8.opcode & 0x0F00) >> 8) as usize] =
                     c8.v[((c8.opcode & 0x00F0) >> 4) as usize];
-
-                    c8.pc += 2;
                 },
                 _      => { panic!("Undefined instruction: 0x{:X}", c8.opcode) }
             },
         // If Vx != Vy skip next instruction.
         0x9000 => {
             if c8.v[((c8.opcode & 0x0F00) >> 8) as usize] != c8.v[((c8.opcode & 0x00F0) >> 4) as usize] {
-                c8.pc += 4;
-            }else{
                 c8.pc += 2;
-            }
-        },
+        }},
         // Sets I to the address NNN.
         0xA000 => {
             c8.i = c8.opcode & 0x0FFF;
-
-            c8.pc += 2;
         },
         // Jumps to the address NNN plus V0.
         0xB000 => {
             c8.pc = (c8.opcode & 0x0FFF) + c8.v[0] as u16;
-
-            c8.pc += 2;
         },
         // Sets VX to the result a random u8 AND NN
         0xC000 => {
             c8.v[((c8.opcode & 0x0F00) >> 8) as usize] =
                 rand::thread_rng().gen::<u8>() &
                 (c8.opcode & 0x00FF) as u8;
-
-            c8.pc += 2;
         },
         // Draw a sprite at Vx, Vy, with a width of 8 and height N
         0xD000 => {
@@ -386,7 +357,6 @@ fn chip8_execute(c8: &mut Chip8) {
             for h in 0..(c8.opcode & 0x000F) {
                 for w in 0..8 {
                     // Each byte at memory[i] represents a row of 8 pixels
-                    println!{"h: {}, w: {}, x: {}, y: {}", &h, &w, &x, &y};
                     if c8.memory[(c8.i + h) as usize] & (0x80 >> w) != 0 {
                         if c8.gfx[((y+h * 64) + (x+w)) as usize] != 0 {
                             c8.v[15] = 1;
@@ -398,27 +368,19 @@ fn chip8_execute(c8: &mut Chip8) {
             }
 
             c8.draw_flag = true;
-
-            c8.pc += 2;
         },
         0xE000 =>
             match c8.opcode & 0x000F {
                 // Skips the next instruction if the key stored in Vx is pressed.
                 0x000E => {
                     if c8.key[c8.v[((c8.opcode & 0x0F00) >> 8) as usize] as usize] == 1 {
-                        c8.pc +=4;
-                    } else {
-                        c8.pc +=2;
-                    }
-                },
+                        c8.pc += 2;
+                }},
                 // Skips the next instruction if the key stored in VX is not pressed.
                 0x0001 => {
                     if c8.key[c8.v[((c8.opcode & 0x0F00) >> 8) as usize] as usize] != 1 {
-                        c8.pc +=4;
-                    } else {
                         c8.pc +=2;
-                    }
-                },
+                }},
                 _      => { panic!("Undefined instruction: 0x{:X}", c8.opcode) }
             },
         0xF000 =>
@@ -426,11 +388,10 @@ fn chip8_execute(c8: &mut Chip8) {
                 // Set VX to the value of the delay timer.
                 0x0007 => {
                     c8.v[(c8.opcode & 0x0F00) as usize] = c8.delay_timer;
-
-                    c8.pc += 2;
                 },
                 // A key press is awaited, and then stored in Vx.
                 0x000A => {
+                    c8.pc -= 2;
                     let pos = c8.key.iter().position(|&key| key == 1);
 
                     match pos {
@@ -444,34 +405,24 @@ fn chip8_execute(c8: &mut Chip8) {
                 // Set the delay timer to Vx.
                 0x0015 => {
                     c8.delay_timer = ((c8.opcode & 0x0F00) >> 8) as u8;
-
-                    c8.pc += 2;
                 },
                 // Set the sound timer to Vx.
                 0x0018 => {
                     c8.sound_timer = ((c8.opcode & 0x0F00) >> 8) as u8;
-
-                    c8.pc += 2;
                 },
                 // Adds Vx to I.
                 0x001E => { 
                     c8.i += c8.v[(c8.opcode & 0x0F00) as usize] as u16;
-
-                    c8.pc += 2;
                 },
                 // Set I to the sprite for the character in Vx.
                 0x0029 => {
                     c8.i = (((c8.opcode & 0x0F00) >> 8)*5) as u16;
-
-                    c8.pc += 2;
                 },
                 // Stores the binary-coded decimal representation of Vx, in i to i+2.
                 0x0033 => {
                     c8.memory[c8.i as usize]     = c8.v[((c8.opcode & 0x0F00) >> 8) as usize] / 100;
                     c8.memory[(c8.i+1) as usize] = (c8.v[((c8.opcode & 0x0F00) >> 8) as usize] / 10) % 10;
                     c8.memory[(c8.i+2) as usize] = c8.v[((c8.opcode & 0x0F00) >> 8) as usize] % 10;
-
-                    c8.pc += 2;
                 },
                 // Stores V0 to Vx in memory starting at address i.
                 0x0055 => {
@@ -479,16 +430,12 @@ fn chip8_execute(c8: &mut Chip8) {
                         c8.memory[(c8.i + i) as usize] = c8.v[i as usize];
                         c8.i += 1;
                     }
-
-                    c8.pc += 2;
                 },
                 // Fills V0 to Vx with values from memory starting at address i.
                 0x0065 => {
                     for i in 0..(((c8.opcode & 0x0F00) >> 8) + 1)  {
                         c8.v[i as usize] = c8.memory[(c8.i + i) as usize];
                     }
-
-                    c8.pc += 2;
                 },
                 _      => { panic!("Undefined instruction: 0x{:X}", c8.opcode) }
             }
