@@ -8,7 +8,7 @@ use sdl2::keyboard::Keycode;
 
 const W_BOUNDS: (u32, u32)   =                (640,320); // Window resolution.
 const TITLE:    &'static str =                  "Chip8"; // Title to be displayed on the window.
-const FILENAME: &'static str = "roms/lunarlander.ch8";
+const FILENAME: &'static str = "roms/pong.ch8";
 
 const CHI8_FONTSET: [u8; 80] = [
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -77,29 +77,12 @@ fn main() {
     chip8_load_game(&mut c8, FILENAME).expect("Could not load file.");
 
     'a : loop {
-
         chip8_handle_input(&mut c8, &mut events);
         chip8_fetch(&mut c8);
         chip8_execute(&mut c8);
         if c8.draw_flag {
             chip8_draw(&mut c8, &mut canvas);
         }
-
-        /*
-        'b : loop {
-            for event in events.poll_iter() {
-                match event {
-                    sdl2::event::Event::Quit{..} => { std::process::exit(1) },
-                    sdl2::event::Event::KeyDown {keycode: Some(keycode), ..} => {
-                        if keycode == sdl2::keyboard::Keycode::Space {
-                            break 'b;
-                        }
-                    },
-                    _ => { }
-                }
-            }
-        }
-        */
     }
 }
 
@@ -272,12 +255,8 @@ fn chip8_execute(c8: &mut Chip8) {
         },
         // Add NN to Vx (Carry flag is not changed)
         0x7000 => {
-            //println!{"c8.v[x]: {:X}, nn: {:X}",(c8.v[x]), (nn)};
-
             let total: u16 = c8.v[x] as u16 + nn as u16;
             c8.v[x] = total as u8;
-
-            //c8.v[x] += nn as u8;
         },
         0x8000 =>
             match c8.opcode & 0x000F {
@@ -301,7 +280,7 @@ fn chip8_execute(c8: &mut Chip8) {
                 0x0004 => {
                     let total: u16 = c8.v[x] as u16 + c8.v[y] as u16;
 
-                    c8.v[x] = total as u8;
+                    c8.v[x] = c8.v[x].wrapping_add(c8.v[y]);//total as u8;
 
                     if total > 0xFF {
                         c8.v[15] = 1;
@@ -309,16 +288,16 @@ fn chip8_execute(c8: &mut Chip8) {
                         c8.v[15] = 0;
                     }
                 },
-                // Set Vx to Vx - Vy (Vf is set to 1 on borrow)
+                // Set Vx to Vx - Vy (Vf is set to 0 on borrow)
                 0x0005 => {
-                    let total = c8.v[x] as i8 - c8.v[y] as i8;
+                    let total = c8.v[x] as i16 - c8.v[y] as i16;
 
                     c8.v[x] = c8.v[x].wrapping_sub(c8.v[y]);
 
                     if total < 0{
-                        c8.v[15] = 1;
-                    } else {
                         c8.v[15] = 0;
+                    } else {
+                        c8.v[15] = 1;
                     }
                 },
                 // Set Vf to least significant bit of Vx and shift Vx right
@@ -328,14 +307,14 @@ fn chip8_execute(c8: &mut Chip8) {
                 },
                 // Sets Vx to Vy - Vx. Vf is set to 0 on borrow.
                 0x0007 => {
-                    let total = c8.v[y] as i8 - c8.v[x] as i8;
+                    let total = c8.v[y] as i16 - c8.v[x] as i16;
 
                     c8.v[x] = c8.v[y].wrapping_sub(c8.v[x]);
 
                     if total < 0 {
-                        c8.v[15] = 1;
-                    } else {
                         c8.v[15] = 0;
+                    } else {
+                        c8.v[15] = 1;
                     }
                 },
                 // Set Vf to most significant bit of Vx and shift Vx left
@@ -390,14 +369,11 @@ fn chip8_execute(c8: &mut Chip8) {
                 // Skips the next instruction if the key stored in Vx is pressed.
                 0x000E => {
                     if c8.key[c8.v[x] as usize] == 1 {
-                        println!{"Key {} pressed.", c8.v[x]};
-                        //c8.key[c8.v[x] as usize] == 0;
                         c8.pc += 2;
                 }},
                 // Skips the next instruction if the key stored in VX is not pressed.
                 0x0001 => {
                     if c8.key[c8.v[x] as usize] != 1 {
-                        println!{"Key {} not pressed.", c8.v[x]};
                         c8.pc +=2;
                 }},
                 _      => { panic!("Undefined instruction: 0x{:X}", c8.opcode) }
@@ -413,12 +389,9 @@ fn chip8_execute(c8: &mut Chip8) {
                     c8.pc -= 2;
                     let pos = c8.key.iter().position(|&key| key == 1);
 
-                    println!{"waitng on keypress"};
-
                     match pos {
                         Some(i) => {
                             c8.v[x] = i as u8;
-                            // c8.key[c8.v[x] as usize] == 0;
                             c8.pc +=2;
                         },
                         None => {  }
@@ -450,19 +423,11 @@ fn chip8_execute(c8: &mut Chip8) {
                 0x0055 => {
                     c8.memory[(c8.i as usize)..(c8.i + x as u16 + 1) as usize]
                         .copy_from_slice(&c8.v[0..(x as usize + 1)]);
-                    //for i in 0..(((c8.opcode & 0x0F00) >> 8) + 1)  {
-                    //    c8.memory[(c8.i + i) as usize] = c8.v[i as usize];
-                    //   c8.i += 1;
-                    //}
                 },
                 // Fills V0 to Vx with values from memory starting at address i.
                 0x0065 => {
                     c8.v[0..(x as usize + 1)]
                         .copy_from_slice(&c8.memory[(c8.i as usize)..(c8.i + x as u16 + 1) as usize]);
-
-                    //for i in 0..(((c8.opcode & 0x0F00) >> 8) + 1)  {
-                    //    c8.v[i as usize] = c8.memory[(c8.i + i) as usize];
-                    //}
                 },
                 _      => { panic!("Undefined instruction: 0x{:X}", c8.opcode) }
             }
@@ -604,7 +569,7 @@ fn test_opcode_0x7000(){
     c8.v[1] = 0xFF;
 
     chip8_execute(&mut c8);
-    assert_eq!{c8.v[1], 0xFF};
+    assert_eq!{c8.v[1], 0xFE};
 
     c8.opcode = 0x71FF;
     c8.v[1] = 0;
@@ -625,20 +590,80 @@ fn test_opcode_0x7000(){
     assert_eq!{c8.v[1], 0xBC};
 }
 
-fn test_opcode_0x8000(){
+#[test]
+fn test_opcode_0x8004(){
     let mut c8 = chip8_initialise();
-    c8.opcode = 0x0000;
+    c8.opcode  = 0x8124;
+    c8.v[1]    = 0xFF;
+    c8.v[2]    = 0xFF;
 
     chip8_execute(&mut c8);
-    //assert_eq!{};
+    assert_eq!{c8.v[1], 0xFE};
+    assert_eq!{c8.v[15], 0x1};
+
+    c8.opcode = 0x8124;
+    c8.v[1]   = 0x0;
+    c8.v[2]   = 0x0;
+    c8.v[15]  = 0x1;
+
+    chip8_execute(&mut c8);
+    assert_eq!{c8.v[1],  0x0};
+    assert_eq!{c8.v[15], 0x0};
+
+    c8.opcode = 0x8124;
+    c8.v[1]   = 0x0;
+    c8.v[2]   = 0xFF;
+    c8.v[15]  = 0x1;
+
+    chip8_execute(&mut c8);
+    assert_eq!{c8.v[1],  0xFF};
+    assert_eq!{c8.v[15],  0x0};
+
+    c8.opcode = 0x8124;
+    c8.v[1] = 0x11;
+    c8.v[2] = 0x12;
+
+    chip8_execute(&mut c8);
+    assert_eq!{c8.v[1], 0x23};
+    assert_eq!{c8.v[15], 0x0};
 }
 
-fn test_opcode_0x9000(){
+#[test]
+fn test_opcode_0x8005(){
     let mut c8 = chip8_initialise();
-    c8.opcode = 0x0000;
+    c8.opcode  = 0x8125;
+    c8.v[1]    = 0xFF;
+    c8.v[2]    = 0xFF;
 
     chip8_execute(&mut c8);
-    //assert_eq!{};
+    assert_eq!{c8.v[1], 0x00};
+    assert_eq!{c8.v[15], 0x0};
+
+    c8.opcode = 0x8125;
+    c8.v[1]   = 0x0;
+    c8.v[2]   = 0x0;
+    c8.v[15]  = 0x1;
+
+    chip8_execute(&mut c8);
+    assert_eq!{c8.v[1],  0x0};
+    assert_eq!{c8.v[15], 0x0};
+
+    c8.opcode = 0x8125;
+    c8.v[1]   = 0x0;
+    c8.v[2]   = 0xFF;
+    c8.v[15]  = 0x1;
+
+    chip8_execute(&mut c8);
+    assert_eq!{c8.v[1],  0x01};
+    assert_eq!{c8.v[15],  0x1};
+
+    c8.opcode = 0x8125;
+    c8.v[1] = 0x11;
+    c8.v[2] = 0x12;
+
+    chip8_execute(&mut c8);
+    assert_eq!{c8.v[1], 0xFF};
+    assert_eq!{c8.v[15], 0x1};
 }
 
 #[test]
