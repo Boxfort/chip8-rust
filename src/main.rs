@@ -8,7 +8,7 @@ use sdl2::keyboard::Keycode;
 
 const W_BOUNDS: (u32, u32)   =                (640,320); // Window resolution.
 const TITLE:    &'static str =                  "Chip8"; // Title to be displayed on the window.
-const FILENAME: &'static str = "roms/PONG";
+const FILENAME: &'static str = "roms/lunarlander.ch8";
 
 const CHI8_FONTSET: [u8; 80] = [
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -85,7 +85,7 @@ fn main() {
             chip8_draw(&mut c8, &mut canvas);
         }
 
-        
+        /*
         'b : loop {
             for event in events.poll_iter() {
                 match event {
@@ -99,7 +99,7 @@ fn main() {
                 }
             }
         }
-        
+        */
     }
 }
 
@@ -174,7 +174,6 @@ fn chip8_load_game(c8: &mut Chip8, filename: &str) -> Result<(), std::io::Error>
 }
 
 fn chip8_handle_input(c8: &mut Chip8, events: &mut sdl2::EventPump) {
-    c8.key = [0_u8; 16];
 
     for event in events.poll_iter() {
         match event {
@@ -191,9 +190,18 @@ fn chip8_handle_input(c8: &mut Chip8, events: &mut sdl2::EventPump) {
                     None => {}
                 }
             },
+            sdl2::event::Event::KeyUp {keycode: Some(keycode), ..} => {
+                let pos = KEYMAP.iter().position(|&key| key == keycode);
+
+                match pos {
+                    Some(i) => c8.key[i] = 0,
+                    None => {}
+                }
+            },
             _                            => continue
         }
     }
+
 }
 
 /// Fetch the current opcode from c8.memory and set c8.opcode.
@@ -209,16 +217,7 @@ fn chip8_execute(c8: &mut Chip8) {
 
     c8.pc += 2;
 
-    println!{ "pc: {:X}, sp: {:X}, i: {:X}", c8.pc, c8.sp, c8.i};
-    println!{ "v: {:?}", c8.v};
-    //c8.gfx.iter().for_each(|a| print!{"{:X}", a});
-    for i in 0..c8.gfx.len() {
-        print!{"{}", c8.gfx[i]};
-        if i % 64 == 0 {
-            println!{""};
-        }
-    }
-    println!{"Executing opcode: 0x{:X}", c8.opcode};
+    //println!{"Executing opcode: 0x{:X}", c8.opcode};
 
     let x   : usize = ((c8.opcode & 0x0F00) >> 8) as usize;
     let y   : usize = ((c8.opcode & 0x00F0) >> 4) as usize;
@@ -255,7 +254,6 @@ fn chip8_execute(c8: &mut Chip8) {
         // If Vx == NN skip next instruction.
         0x3000 => {
             if c8.v[x] == nn as u8 {
-                println!{"Skipped!"};
                 c8.pc += 2;
             }},
         // If Vx != NN skip next instruction.
@@ -274,8 +272,7 @@ fn chip8_execute(c8: &mut Chip8) {
         },
         // Add NN to Vx (Carry flag is not changed)
         0x7000 => {
-            println!{"c8.v[x]: {:X}, nn: {:X}",
-                    (c8.v[x]), (nn)};
+            //println!{"c8.v[x]: {:X}, nn: {:X}",(c8.v[x]), (nn)};
 
             let total: u16 = c8.v[x] as u16 + nn as u16;
             c8.v[x] = total as u8;
@@ -375,14 +372,12 @@ fn chip8_execute(c8: &mut Chip8) {
                 for w in 0..8 {
                     // Each byte at memory[i] represents a row of 8 pixels
                     if c8.memory[(c8.i + h as u16) as usize] & (0x80 >> w) != 0 {
-                        if c8.gfx[((c8.v[y] as usize + h * 64) + (c8.v[x]+w) as usize) as usize] != 0 {
+                        let dy = ((c8.v[y] as usize + h) * 64) % 2048;
+                        let dx = ((c8.v[x] + w) as usize) % 2048;
+                        // If there was a collision, write to the carry flag.
+                        if c8.gfx[(dy + dx) as usize] != 0 {
                             c8.v[15] = 1;
                         }
-                        let dy = ((c8.v[y] as usize + h) * 64);
-                        let dx = ((c8.v[x]+w) as usize);
-                        
-                        println!{"({},{})", (dy/64), dx};
-
                         c8.gfx[(dy + dx) as usize] ^= 0xFF;
                     }
                 }
@@ -395,11 +390,14 @@ fn chip8_execute(c8: &mut Chip8) {
                 // Skips the next instruction if the key stored in Vx is pressed.
                 0x000E => {
                     if c8.key[c8.v[x] as usize] == 1 {
+                        println!{"Key {} pressed.", c8.v[x]};
+                        //c8.key[c8.v[x] as usize] == 0;
                         c8.pc += 2;
                 }},
                 // Skips the next instruction if the key stored in VX is not pressed.
                 0x0001 => {
                     if c8.key[c8.v[x] as usize] != 1 {
+                        println!{"Key {} not pressed.", c8.v[x]};
                         c8.pc +=2;
                 }},
                 _      => { panic!("Undefined instruction: 0x{:X}", c8.opcode) }
@@ -415,9 +413,12 @@ fn chip8_execute(c8: &mut Chip8) {
                     c8.pc -= 2;
                     let pos = c8.key.iter().position(|&key| key == 1);
 
+                    println!{"waitng on keypress"};
+
                     match pos {
                         Some(i) => {
                             c8.v[x] = i as u8;
+                            // c8.key[c8.v[x] as usize] == 0;
                             c8.pc +=2;
                         },
                         None => {  }
