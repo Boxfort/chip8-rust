@@ -319,7 +319,7 @@ fn chip8_execute(c8: &mut Chip8) {
                 },
                 // Set Vf to most significant bit of Vx and shift Vx left
                 0x000E => {
-                    c8.v[15] = c8.v[x] & 0x80;
+                    c8.v[15] = (c8.v[x] & 0x80) >> 7;
                     c8.v[x] <<= 1;
                 },
                 _      => { panic!("Undefined instruction: 0x{:X}", c8.opcode) }
@@ -637,33 +637,34 @@ fn test_opcode_0x8005(){
 
     chip8_execute(&mut c8);
     assert_eq!{c8.v[1], 0x00};
-    assert_eq!{c8.v[15], 0x0};
+    assert_eq!{c8.v[15], 0x1};
 
     c8.opcode = 0x8125;
     c8.v[1]   = 0x0;
     c8.v[2]   = 0x0;
-    c8.v[15]  = 0x1;
+    c8.v[15]  = 0x0;
 
     chip8_execute(&mut c8);
     assert_eq!{c8.v[1],  0x0};
-    assert_eq!{c8.v[15], 0x0};
+    assert_eq!{c8.v[15], 0x1};
 
     c8.opcode = 0x8125;
     c8.v[1]   = 0x0;
     c8.v[2]   = 0xFF;
-    c8.v[15]  = 0x1;
+    c8.v[15]  = 0x0;
 
     chip8_execute(&mut c8);
     assert_eq!{c8.v[1],  0x01};
-    assert_eq!{c8.v[15],  0x1};
+    assert_eq!{c8.v[15],  0x0};
 
     c8.opcode = 0x8125;
-    c8.v[1] = 0x11;
-    c8.v[2] = 0x12;
+    c8.v[1]   = 0x11;
+    c8.v[2]   = 0x12;
+    c8.v[15]  = 0x1;
 
     chip8_execute(&mut c8);
     assert_eq!{c8.v[1], 0xFF};
-    assert_eq!{c8.v[15], 0x1};
+    assert_eq!{c8.v[15], 0x0};
 }
 
 #[test]
@@ -682,4 +683,59 @@ fn test_opcode_0x8006() {
     chip8_execute(&mut c8);
     assert_eq!(c8.v[1], 0b00011000, "Vx shifted 1 bit right.");
     assert_eq!(c8.v[15], 1, "Carry flag set to 1.");
+}
+
+#[test]
+fn test_opcode_0x8007() {
+    let mut c8 = chip8_initialise();
+    c8.opcode  = 0x8127;
+    c8.v[1]    = 0xFF;
+    c8.v[2]    = 0xFF;
+
+    chip8_execute(&mut c8);
+    assert_eq!{c8.v[1], 0x00};
+    assert_eq!{c8.v[15], 0x1};
+
+    c8.opcode = 0x8127;
+    c8.v[1]   = 0x0;
+    c8.v[2]   = 0x0;
+    c8.v[15]  = 0x1;
+
+    chip8_execute(&mut c8);
+    assert_eq!{c8.v[1],  0x0};
+    assert_eq!{c8.v[15], 0x1};
+
+    c8.opcode = 0x8127;
+    c8.v[1]   = 0xFF;
+    c8.v[2]   = 0x00;
+    c8.v[15]  = 0x1;
+
+    chip8_execute(&mut c8);
+    assert_eq!{c8.v[1],  0x01};
+    assert_eq!{c8.v[15],  0x0};
+
+    c8.opcode = 0x8127;
+    c8.v[1] = 0x12;
+    c8.v[2] = 0x11;
+
+    chip8_execute(&mut c8);
+    assert_eq!{c8.v[1], 0xFF};
+    assert_eq!{c8.v[15], 0x0};
+}
+
+#[test]
+fn test_opcode_0x800e() {
+    let mut c8 = chip8_initialise();
+    c8.opcode = 0x810E;
+    c8.v[1] = 0b10110000;
+
+    chip8_execute(&mut c8);
+    assert_eq!(c8.v[1], 0b01100000, "Vx shifted 1 bit left.");
+    assert_eq!(c8.v[15], 1, "Carry flag set to 1.");
+
+    c8.v[1] = 0b00110001;
+    c8.v[15] = 1;
+    chip8_execute(&mut c8);
+    assert_eq!(c8.v[1], 0b01100010, "Vx shifted 1 bit left.");
+    assert_eq!(c8.v[15], 0, "Carry flag set to 0.");
 }
