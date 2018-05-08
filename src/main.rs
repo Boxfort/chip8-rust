@@ -6,9 +6,8 @@ use std::fs::File;
 use rand::Rng;
 use sdl2::keyboard::Keycode;
 
-const W_BOUNDS: (u32, u32)   =                (640,320); // Window resolution.
-const TITLE:    &'static str =                  "Chip8"; // Title to be displayed on the window.
-const FILENAME: &'static str = "roms/pong.ch8";
+const W_BOUNDS: (u32, u32)   = (640,320); // Window resolution.
+const TITLE:    &'static str =   "Chip8"; // Title to be displayed on the window.
 
 const CHI8_FONTSET: [u8; 80] = [
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -64,6 +63,14 @@ struct Chip8 {
 }
 
 fn main() {
+    let args: Vec<String> = std::env::args().collect();
+
+    if args.len() != 2 {
+        writeln!(std::io::stderr(), "Useage: chip8 FILENAME").unwrap();
+        writeln!(std::io::stderr(), "Example: {} pong.ch8", args[0]).unwrap();
+        std::process::exit(1);
+    }
+
     // Initialise Window
     let (mut canvas, mut events) = window_initialise();
 
@@ -74,7 +81,7 @@ fn main() {
     chip8_load_fontset(&mut c8);
 
     // Load game into memory
-    chip8_load_game(&mut c8, FILENAME).expect("Could not load file.");
+    chip8_load_game(&mut c8, &args[1]).expect("Could not load file.");
 
     'a : loop {
         chip8_handle_input(&mut c8, &mut events);
@@ -351,13 +358,13 @@ fn chip8_execute(c8: &mut Chip8) {
                 for w in 0..8 {
                     // Each byte at memory[i] represents a row of 8 pixels
                     if c8.memory[(c8.i + h as u16) as usize] & (0x80 >> w) != 0 {
-                        let dy = ((c8.v[y] as usize + h) * 64) % 2048;
-                        let dx = ((c8.v[x] + w) as usize) % 2048;
+                        let dy = (c8.v[y] as usize + h) * 64;
+                        let dx = (c8.v[x] as usize + w) as usize;
                         // If there was a collision, write to the carry flag.
-                        if c8.gfx[(dy + dx) as usize] != 0 {
+                        if c8.gfx[((dy + dx) % 2048) as usize] != 0 {
                             c8.v[15] = 1;
                         }
-                        c8.gfx[(dy + dx) as usize] ^= 0xFF;
+                        c8.gfx[(dy + dx) as usize % 2048] ^= 0xFF;
                     }
                 }
             }
